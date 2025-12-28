@@ -17,6 +17,11 @@ async function bootstrap() {
     }),
   );
 
+  app.enableCors({
+    origin: 'http://localhost:3000', // Allow your Next.js frontend
+    credentials: true,
+  });
+
   const config = new DocumentBuilder()
     .setTitle('TipikAI API Documentation')
     .setDescription('This contains all the API documentation for TipikAI.')
