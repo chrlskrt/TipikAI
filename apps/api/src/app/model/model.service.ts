@@ -82,68 +82,84 @@ export class ModelService {
       .executeTakeFirstOrThrow();
 
     this.logger.log(`[Execution] Created execution: ${execution.id}`);
-
+    // Prepare headers for n8n
     const headers: Record<string, string> = {
       'X-N8N-Secret': this.n8nSecret,
       'X-User-Id': user.id,
       'X-Execution-Id': execution.id,
-      'ngrok-skip-browser-warning': 'true',
+      'ngrok-skip-browser-warning': 'true', // Required for ngrok URLs
       'User-Agent': 'TipikAI-Backend',
     };
 
-    try {
-      // Trigger n8n workflow
-      this.logger.log(`[Execution] Triggering n8n at: ${this.n8nClient.defaults.baseURL}${this.modelExecutionEndpoint}`);
-      
-      const response = await this.n8nClient.post(
-        this.modelExecutionEndpoint,
-        {
-          executionId: execution.id,
-          modelPrompt: startExecutionDto.modelPrompt,
-          modelFormat: startExecutionDto.modelFormat,
-          sources: startExecutionDto.sources || [],
-        },
-        { headers },
-      );
+    // Fire-and-forget: Trigger n8n workflow without blocking the response
+    this.logger.log(`[Execution] Triggering n8n at: ${this.n8nClient.defaults.baseURL}${this.modelExecutionEndpoint}`);
+    
+    // Trigger n8n in background with timeout
+    const triggerN8n = async () => {
+      try {
+        const response = await Promise.race([
+          this.n8nClient.post(
+            this.modelExecutionEndpoint,
+            {
+              executionId: execution.id,
+              modelPrompt: startExecutionDto.modelPrompt,
+              modelFormat: startExecutionDto.modelFormat,
+              sources: startExecutionDto.sources || [],
+            },
+            { 
+              headers,
+              timeout: 5000, // 5 second timeout
+            },
+          ),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('n8n request timeout')), 5000)
+          ),
+        ]);
 
-      this.logger.log(`[Execution] n8n response status: ${response.status}`);
+        this.logger.log(`[Execution] n8n response status: ${(response as any).status}`);
+        this.logger.log(`[Execution] Successfully triggered n8n workflow for: ${execution.id}`);
 
-      this.logger.log(`[Execution] Triggered n8n workflow for: ${execution.id}`);
+        // Update execution with started_at timestamp
+        await this.db['db']
+          .updateTable('executions')
+          .set({ started_at: new Date().toISOString() })
+          .where('id', '=', execution.id)
+          .execute();
+      } catch (error: any) {
+        // Enhanced error logging
+        this.logger.error('[Execution] Failed to trigger n8n:', {
+          message: error.message,
+          url: error.config?.url,
+          baseURL: error.config?.baseURL,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          code: error.code,
+        });
 
-      // Update execution with started_at timestamp
-      await this.db['db']
-        .updateTable('executions')
-        .set({ started_at: new Date().toISOString() })
-        .where('id', '=', execution.id)
-        .execute();
-    } catch (error: any) {
-      // Enhanced error logging
-      this.logger.error('[Execution] Failed to trigger n8n:', {
-        message: error.message,
-        url: error.config?.url,
-        baseURL: error.config?.baseURL,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        code: error.code,
+        const error_message = error.response?.data?.message 
+          || error.message 
+          || 'Unknown error occurred';
+        
+        // Update execution status to failed
+        await this.db['db']
+          .updateTable('executions')
+          .set({
+            status: 'failed',
+            error_message: `Failed to start workflow: ${error_message}`,
+          })
+          .where('id', '=', execution.id)
+          .execute();
+      }
+    };
+
+    // Trigger in background using setImmediate to truly decouple from the request
+    setImmediate(() => {
+      this.logger.log(`[Execution] background trigger starting for: ${execution.id}`);
+      triggerN8n().catch(err => {
+        this.logger.error('[Execution] Unhandled error in background n8n trigger:', err);
       });
-
-      const error_message = error.response?.data?.message 
-        || error.message 
-        || 'Unknown error occurred';
-      
-      // Update execution status to failed
-      await this.db['db']
-        .updateTable('executions')
-        .set({
-          status: 'failed',
-          error_message: `Failed to start workflow: ${error_message}`,
-        })
-        .where('id', '=', execution.id)
-        .execute();
-
-      throw new Error(`Failed to start execution: ${error_message}`);
-    }
+    });
 
     return this.formatExecutionResponse(execution);
   }
@@ -212,30 +228,33 @@ export class ModelService {
       }
 
       // Results - ACCUMULATE models and notebooks
-      if (updateDto.data.model || updateDto.data.notebook) {
-        // Get existing results
-        let existingResults: any = {};
-        if (execution.results) {
-          try {
-            existingResults = JSON.parse(execution.results as string);
-          } catch (e) {
-            this.logger.warn('Failed to parse existing results, starting fresh');
-          }
-        }
+      if (updateDto.data.model || updateDto.data.notebook || updateDto.data.models || updateDto.data.notebooks) {
+        // Get existing results safely
+        let existingResults: any = this.safeJsonParse(execution.results, 'results') || {};
 
         // Initialize arrays if they don't exist
         if (!existingResults.models) existingResults.models = [];
         if (!existingResults.notebooks) existingResults.notebooks = [];
 
-        // Append new model if provided
-        if (updateDto.data.model) {
-          existingResults.models.push(updateDto.data.model);
-        }
+        // Helper to add unique items (by URL)
+        const addUniqueItems = (targetArr: any[], newItems: any | any[]) => {
+          if (!newItems) return;
+          const itemsToAdd = Array.isArray(newItems) ? newItems : [newItems];
+          
+          for (const item of itemsToAdd) {
+            // Check if this URL is already in the list
+            const alreadyExists = targetArr.some(existing => existing.url === item.url);
+            if (!alreadyExists) {
+              targetArr.push(item);
+            }
+          }
+        };
 
-        // Append new notebook if provided
-        if (updateDto.data.notebook) {
-          existingResults.notebooks.push(updateDto.data.notebook);
-        }
+        // Accumulate models
+        addUniqueItems(existingResults.models, updateDto.data.model || updateDto.data.models);
+        
+        // Accumulate notebooks
+        addUniqueItems(existingResults.notebooks, updateDto.data.notebook || updateDto.data.notebooks);
 
         updateData.results = JSON.stringify(existingResults);
         
@@ -249,7 +268,6 @@ export class ModelService {
     // Handle failed status
     if (updateDto.status === 'failed' && updateDto.data?.error) {
       updateData.error_message = updateDto.data.error;
-      console.log("faildlsddf")
     }
 
     // Update execution
@@ -338,18 +356,18 @@ export class ModelService {
       .returningAll()
       .executeTakeFirstOrThrow();
 
-    // Trigger n8n workflow again
-    const req = getCurrentRequest();
-    const user = req['user'];
-
+    // Prepare headers for n8n
     const headers: Record<string, string> = {
       'X-N8N-Secret': this.n8nSecret,
-      'X-User-Id': user?.id || execution.user_id,
+      'X-User-Id': execution.user_id,
       'X-Execution-Id': execution.id,
+      'ngrok-skip-browser-warning': 'true',
     };
 
-    try {
-      await this.n8nClient.post(
+    // Trigger n8n workflow again in background
+    setImmediate(() => {
+      this.logger.log(`[Execution] background retry trigger starting for: ${executionId}`);
+      this.n8nClient.post(
         this.modelExecutionEndpoint,
         {
           executionId: execution.id,
@@ -358,21 +376,19 @@ export class ModelService {
           sources: execution.sources || [],
         },
         { headers },
-      );
+      ).then(() => {
+        // Update started_at
+        return this.db['db']
+          .updateTable('executions')
+          .set({ started_at: new Date().toISOString() })
+          .where('id', '=', executionId)
+          .execute();
+      }).catch(error => {
+        this.logger.error('[Execution] Background retry failed:', error.message);
+      });
+    });
 
-      // Update started_at
-      await this.db['db']
-        .updateTable('executions')
-        .set({ started_at: new Date().toISOString() })
-        .where('id', '=', executionId)
-        .execute();
-
-      this.logger.log(`[Execution] Retried: ${executionId}`);
-    } catch (error) {
-      this.logger.error('[Execution] Retry failed:', error.message);
-      throw new Error(`Failed to retry execution: ${error.message}`);
-    }
-
+    this.logger.log(`[Execution] Retry initiated: ${executionId}`);
     return this.formatExecutionResponse(updatedExecution);
   }
 
@@ -380,42 +396,44 @@ export class ModelService {
    * Format execution record to response DTO
    */
   private formatExecutionResponse(execution: any): ExecutionResponseDto {
-    // Helper to safely parse JSON fields
-    const safeJsonParse = (value: any, fieldName: string) => {
-      if (!value) return undefined;
-      
-      // If it's already an object, return it
-      if (typeof value === 'object') return value;
-      
-      // If it's a string, try to parse it
-      if (typeof value === 'string') {
-        // Check for invalid "[object Object]" string
-        if (value === '[object Object]') {
-          this.logger.warn(`[Execution] Invalid JSON string "[object Object]" found in ${fieldName}`);
-          return undefined;
-        }
-        
-        try {
-          return JSON.parse(value);
-        } catch (error) {
-          this.logger.error(`[Execution] Failed to parse ${fieldName}: ${error.message}`);
-          return undefined;
-        }
-      }
-      
-      return undefined;
-    };
-
     return {
       id: execution.id,
       status: execution.status,
       currentStage: execution.current_stage,
       progress: execution.progress || 0,
-      datasetInfo: safeJsonParse(execution.dataset_info, 'dataset_info'),
-      results: safeJsonParse(execution.results, 'results'),
+      datasetInfo: this.safeJsonParse(execution.dataset_info, 'dataset_info'),
+      results: this.safeJsonParse(execution.results, 'results'),
       error: execution.error_message,
       createdAt: execution.created_at,
       updatedAt: execution.updated_at,
     };
+  }
+
+  /**
+   * Helper to safely parse JSON fields
+   */
+  private safeJsonParse(value: any, fieldName: string) {
+    if (!value) return undefined;
+    
+    // If it's already an object, return it
+    if (typeof value === 'object') return value;
+    
+    // If it's a string, try to parse it
+    if (typeof value === 'string') {
+      // Check for invalid "[object Object]" string
+      if (value === '[object Object]') {
+        this.logger.warn(`[Execution] Invalid JSON string "[object Object]" found in ${fieldName}`);
+        return undefined;
+      }
+      
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        this.logger.error(`[Execution] Failed to parse ${fieldName}: ${error.message}`);
+        return undefined;
+      }
+    }
+    
+    return undefined;
   }
 }

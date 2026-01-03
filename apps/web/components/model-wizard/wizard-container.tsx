@@ -198,6 +198,32 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
     setModelFormat("pickle");
   };
 
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      // Fetch the file and create a blob
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Network response was not ok');
+      
+      const blob = await response.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      
+      // Create a temporary link and click it
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Fallback to opening in new tab if fetch fails (e.g. CORS)
+      window.open(url, '_blank');
+    }
+  };
+
   const isExecuting = executionStatus && !['complete', 'failed', 'cancelled'].includes(executionStatus.status);
 
   return (
@@ -221,9 +247,9 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
             <div className="relative pt-2">
               <div className="flex justify-between text-sm font-semibold text-muted-foreground mb-4 px-1">
                 <span>{executionStatus.currentStage || executionStatus.status}</span>
-                <span>{Math.round(animatedProgress)}% Complete</span>
+                <span>{Math.round(executionStatus.progress)}% Complete</span>
               </div>
-              <div className="h-3 bg-secondary overflow-hidden">
+              <div className="h-4 bg-primary/15 rounded-full overflow-hidden border border-primary/10">
                 <div
                   className="h-full bg-primary transition-all duration-300 ease-out"
                   style={{ width: `${animatedProgress}%` }}
@@ -394,10 +420,12 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
                             <h4 className="font-medium">Models</h4>
                             <div className="grid grid-cols-1 gap-2">
                               {executionStatus.results.models.map((model, index) => (
-                                <Button key={index} asChild className="w-full">
-                                  <a href={model.url} download>
-                                    Download Model {index + 1} ({model.filename})
-                                  </a>
+                                <Button 
+                                  key={index} 
+                                  className="w-full"
+                                  onClick={() => handleDownload(model.url, model.filename)}
+                                >
+                                  Download Model {index + 1} ({model.filename})
                                 </Button>
                               ))}
                             </div>
@@ -410,10 +438,13 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
                             <h4 className="font-medium">Notebooks</h4>
                             <div className="grid grid-cols-1 gap-2">
                               {executionStatus.results.notebooks.map((notebook, index) => (
-                                <Button key={index} asChild variant="outline" className="w-full">
-                                  <a href={notebook.url} download>
-                                    Download Notebook {index + 1} ({notebook.filename})
-                                  </a>
+                                <Button 
+                                  key={index} 
+                                  variant="outline" 
+                                  className="w-full"
+                                  onClick={() => handleDownload(notebook.url, notebook.filename)}
+                                >
+                                  Download Notebook {index + 1} ({notebook.filename})
                                 </Button>
                               ))}
                             </div>
