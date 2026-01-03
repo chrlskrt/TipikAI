@@ -68,10 +68,21 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
 
   // Adaptive polling based on status
   const getPollingInterval = (status: string) => {
-    if (status === 'downloading' || status === 'preprocessing') {
-      return 15000; // 15 seconds for long-running stages
+    switch (status) {
+      case 'searching_dataset':
+        return 15000; // 15 seconds - searching for dataset
+      case 'dataset_found':
+        return 3000; // 3 seconds - quick check after dataset found
+      case 'downloading':
+      case 'preprocessing':
+        return 15000; // 15 seconds - long-running preprocessing
+      case 'training':
+        return 15000; // 15 seconds - model training
+      case 'pending':
+        return 2000; // 2 seconds - just started, check quickly
+      default:
+        return 5000; // 5 seconds default
     }
-    return 10000; // 10 seconds default
   };
 
   // Polling mechanism
@@ -92,11 +103,11 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
       }
     };
 
-    // Initial poll
+    // Initial poll - immediate
     poll();
 
     // Set up interval based on current status
-    const interval = setInterval(poll, getPollingInterval(executionStatus?.status || ''));
+    const interval = setInterval(poll, getPollingInterval(executionStatus?.status || 'pending'));
 
     return () => clearInterval(interval);
   }, [executionId, executionStatus?.status]);

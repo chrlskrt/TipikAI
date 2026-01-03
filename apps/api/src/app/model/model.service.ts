@@ -83,16 +83,19 @@ export class ModelService {
 
     this.logger.log(`[Execution] Created execution: ${execution.id}`);
 
-    // Prepare headers for n8n
     const headers: Record<string, string> = {
       'X-N8N-Secret': this.n8nSecret,
       'X-User-Id': user.id,
       'X-Execution-Id': execution.id,
+      'ngrok-skip-browser-warning': 'true',
+      'User-Agent': 'TipikAI-Backend',
     };
 
     try {
       // Trigger n8n workflow
-      await this.n8nClient.post(
+      this.logger.log(`[Execution] Triggering n8n at: ${this.n8nClient.defaults.baseURL}${this.modelExecutionEndpoint}`);
+      
+      const response = await this.n8nClient.post(
         this.modelExecutionEndpoint,
         {
           executionId: execution.id,
@@ -103,6 +106,8 @@ export class ModelService {
         { headers },
       );
 
+      this.logger.log(`[Execution] n8n response status: ${response.status}`);
+
       this.logger.log(`[Execution] Triggered n8n workflow for: ${execution.id}`);
 
       // Update execution with started_at timestamp
@@ -111,16 +116,28 @@ export class ModelService {
         .set({ started_at: new Date().toISOString() })
         .where('id', '=', execution.id)
         .execute();
-    } catch (error) {
-      this.logger.error('[Execution] Failed to trigger n8n:', error.message);
+    } catch (error: any) {
+      // Enhanced error logging
+      this.logger.error('[Execution] Failed to trigger n8n:', {
+        message: error.message,
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        code: error.code,
+      });
 
-      const error_message = `Failed to start workflow: ${error.message}`
+      const error_message = error.response?.data?.message 
+        || error.message 
+        || 'Unknown error occurred';
+      
       // Update execution status to failed
       await this.db['db']
         .updateTable('executions')
         .set({
           status: 'failed',
-          error_message: error_message,
+          error_message: `Failed to start workflow: ${error_message}`,
         })
         .where('id', '=', execution.id)
         .execute();
