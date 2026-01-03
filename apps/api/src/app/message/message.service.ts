@@ -3,7 +3,6 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { Kysely } from 'kysely';
 import { DB } from 'src/database/db';
-import { getCurrentRequest } from 'src/common/utils/request-context';
 
 @Injectable()
 export class MessageService {
