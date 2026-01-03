@@ -7,13 +7,13 @@ import {
 import { RegisterUserDto } from './dto/register-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { Kysely } from 'kysely';
-import { DB } from 'src/database/db';
+import { DB } from '../../database/db';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { AccessTokenPayload } from 'src/common/types/jwt.types';
+import { AccessTokenPayload } from '../../common/types/jwt.types';
 import { LoginDto } from './dto/login.dto';
-import { getCurrentRequest } from 'src/common/utils/request-context';
+import { getCurrentRequest } from '../../common/utils/request-context';
 
 export interface JwtPayload {
   sub: number;

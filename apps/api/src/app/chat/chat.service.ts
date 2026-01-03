@@ -1,7 +1,7 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Kysely } from 'kysely';
 import { getCurrentRequest } from '../../common/utils/request-context';
-import { DB } from 'src/database/db';
+import { DB } from '../../database/db';
 import { CreateChatDto } from './dto/create-chat.dto';
 
 @Injectable()

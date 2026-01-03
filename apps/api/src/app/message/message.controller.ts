@@ -13,7 +13,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { SuccessResponseDto } from 'src/common/dto/response.dto';
+import { SuccessResponseDto } from '../../common/dto/response.dto';
 
 @Controller('chat/:chatId/message')
 @UseGuards(AuthGuard('jwt'))

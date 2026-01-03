@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
-import { DatabaseService } from 'src/database/database.service';
+import { DatabaseService } from '../../database/database.service';
 import { getCurrentRequest } from '../../common/utils/request-context';
 import {
   StartExecutionDto,
