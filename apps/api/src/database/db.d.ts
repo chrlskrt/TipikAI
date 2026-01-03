@@ -3,46 +3,31 @@
  * Please do not edit it manually.
  */
 
-import type { ColumnType } from 'kysely';
+import type { ColumnType } from "kysely";
 
-export type AuthAalLevel = 'aal1' | 'aal2' | 'aal3';
+export type AuthAalLevel = "aal1" | "aal2" | "aal3";
 
-export type AuthCodeChallengeMethod = 'plain' | 's256';
+export type AuthCodeChallengeMethod = "plain" | "s256";
 
-export type AuthFactorStatus = 'unverified' | 'verified';
+export type AuthFactorStatus = "unverified" | "verified";
 
-export type AuthFactorType = 'phone' | 'totp' | 'webauthn';
+export type AuthFactorType = "phone" | "totp" | "webauthn";
 
-export type AuthOauthAuthorizationStatus =
-  | 'approved'
-  | 'denied'
-  | 'expired'
-  | 'pending';
+export type AuthOauthAuthorizationStatus = "approved" | "denied" | "expired" | "pending";
 
-export type AuthOauthClientType = 'confidential' | 'public';
+export type AuthOauthClientType = "confidential" | "public";
 
-export type AuthOauthRegistrationType = 'dynamic' | 'manual';
+export type AuthOauthRegistrationType = "dynamic" | "manual";
 
-export type AuthOauthResponseType = 'code';
+export type AuthOauthResponseType = "code";
 
-export type AuthOneTimeTokenType =
-  | 'confirmation_token'
-  | 'email_change_token_current'
-  | 'email_change_token_new'
-  | 'phone_change_token'
-  | 'reauthentication_token'
-  | 'recovery_token';
+export type AuthOneTimeTokenType = "confirmation_token" | "email_change_token_current" | "email_change_token_new" | "phone_change_token" | "reauthentication_token" | "recovery_token";
 
-export type Generated<T> =
-  T extends ColumnType<infer S, infer I, infer U>
-    ? ColumnType<S, I | undefined, U>
-    : ColumnType<T, T | undefined, T>;
+export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
+  ? ColumnType<S, I | undefined, U>
+  : ColumnType<T, T | undefined, T>;
 
-export type Int8 = ColumnType<
-  string,
-  bigint | number | string,
-  bigint | number | string
->;
+export type Int8 = ColumnType<string, bigint | number | string, bigint | number | string>;
 
 export type Json = JsonValue;
 
@@ -58,7 +43,7 @@ export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
 export type Numeric = ColumnType<string, number | string, number | string>;
 
-export type StorageBuckettype = 'ANALYTICS' | 'STANDARD' | 'VECTOR';
+export type StorageBuckettype = "ANALYTICS" | "STANDARD" | "VECTOR";
 
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
@@ -365,7 +350,29 @@ export interface AuthUsers {
 export interface Chats {
   created_at: Generated<Timestamp>;
   id: Generated<string>;
+  title: string | null;
+  updated_at: Generated<Timestamp | null>;
   user_id: string | null;
+}
+
+export interface Executions {
+  id: Generated<string>;
+  user_id: string;
+  chat_id: string | null;
+  model_prompt: string;
+  model_format: string;
+  sources: string[] | null;
+  n8n_execution_id: string | null;
+  status: string;
+  current_stage: string | null;
+  progress: number | null;
+  dataset_info: Json | null;
+  results: Json | null;
+  error_message: string | null;
+  created_at: Generated<Timestamp>;
+  updated_at: Generated<Timestamp>;
+  started_at: Timestamp | null;
+  completed_at: Timestamp | null;
 }
 
 export interface ExtensionsPgStatStatements {
@@ -427,10 +434,19 @@ export interface ExtensionsPgStatStatementsInfo {
 
 export interface Messages {
   chat_id: string | null;
-  content: string | null;
+  /**
+   * JSONB column storing message content. Can be text messages {"text": "..."} or structured data like dataset search/model training responses
+   */
+  content: Json | null;
   created_at: Generated<Timestamp>;
   id: Generated<string>;
   is_user: boolean | null;
+}
+
+export interface N8nChatHistories {
+  id: Generated<number>;
+  message: Json;
+  session_id: string;
 }
 
 export interface RealtimeMessages {
@@ -588,46 +604,48 @@ export interface VaultSecrets {
 }
 
 export interface DB {
-  'auth.audit_log_entries': AuthAuditLogEntries;
-  'auth.flow_state': AuthFlowState;
-  'auth.identities': AuthIdentities;
-  'auth.instances': AuthInstances;
-  'auth.mfa_amr_claims': AuthMfaAmrClaims;
-  'auth.mfa_challenges': AuthMfaChallenges;
-  'auth.mfa_factors': AuthMfaFactors;
-  'auth.oauth_authorizations': AuthOauthAuthorizations;
-  'auth.oauth_client_states': AuthOauthClientStates;
-  'auth.oauth_clients': AuthOauthClients;
-  'auth.oauth_consents': AuthOauthConsents;
-  'auth.one_time_tokens': AuthOneTimeTokens;
-  'auth.refresh_tokens': AuthRefreshTokens;
-  'auth.saml_providers': AuthSamlProviders;
-  'auth.saml_relay_states': AuthSamlRelayStates;
-  'auth.schema_migrations': AuthSchemaMigrations;
-  'auth.sessions': AuthSessions;
-  'auth.sso_domains': AuthSsoDomains;
-  'auth.sso_providers': AuthSsoProviders;
-  'auth.users': AuthUsers;
-  'authentication.refresh_tokens': AuthenticationRefreshTokens;
-  'authentication.roles': AuthenticationRoles;
-  'authentication.user_roles': AuthenticationUserRoles;
-  'authentication.users': AuthenticationUsers;
-  'extensions.pg_stat_statements': ExtensionsPgStatStatements;
-  'extensions.pg_stat_statements_info': ExtensionsPgStatStatementsInfo;
-  'public.chats': Chats;
-  'public.messages': Messages;
-  'realtime.messages': RealtimeMessages;
-  'realtime.schema_migrations': RealtimeSchemaMigrations;
-  'realtime.subscription': RealtimeSubscription;
-  'storage.buckets': StorageBuckets;
-  'storage.buckets_analytics': StorageBucketsAnalytics;
-  'storage.buckets_vectors': StorageBucketsVectors;
-  'storage.migrations': StorageMigrations;
-  'storage.objects': StorageObjects;
-  'storage.prefixes': StoragePrefixes;
-  'storage.s3_multipart_uploads': StorageS3MultipartUploads;
-  'storage.s3_multipart_uploads_parts': StorageS3MultipartUploadsParts;
-  'storage.vector_indexes': StorageVectorIndexes;
-  'vault.decrypted_secrets': VaultDecryptedSecrets;
-  'vault.secrets': VaultSecrets;
+  "auth.audit_log_entries": AuthAuditLogEntries;
+  "auth.flow_state": AuthFlowState;
+  "auth.identities": AuthIdentities;
+  "auth.instances": AuthInstances;
+  "auth.mfa_amr_claims": AuthMfaAmrClaims;
+  "auth.mfa_challenges": AuthMfaChallenges;
+  "auth.mfa_factors": AuthMfaFactors;
+  "auth.oauth_authorizations": AuthOauthAuthorizations;
+  "auth.oauth_client_states": AuthOauthClientStates;
+  "auth.oauth_clients": AuthOauthClients;
+  "auth.oauth_consents": AuthOauthConsents;
+  "auth.one_time_tokens": AuthOneTimeTokens;
+  "auth.refresh_tokens": AuthRefreshTokens;
+  "auth.saml_providers": AuthSamlProviders;
+  "auth.saml_relay_states": AuthSamlRelayStates;
+  "auth.schema_migrations": AuthSchemaMigrations;
+  "auth.sessions": AuthSessions;
+  "auth.sso_domains": AuthSsoDomains;
+  "auth.sso_providers": AuthSsoProviders;
+  "auth.users": AuthUsers;
+  "authentication.refresh_tokens": AuthenticationRefreshTokens;
+  "authentication.roles": AuthenticationRoles;
+  "authentication.user_roles": AuthenticationUserRoles;
+  "authentication.users": AuthenticationUsers;
+  chats: Chats;
+  executions: Executions;
+  "extensions.pg_stat_statements": ExtensionsPgStatStatements;
+  "extensions.pg_stat_statements_info": ExtensionsPgStatStatementsInfo;
+  messages: Messages;
+  n8n_chat_histories: N8nChatHistories;
+  "realtime.messages": RealtimeMessages;
+  "realtime.schema_migrations": RealtimeSchemaMigrations;
+  "realtime.subscription": RealtimeSubscription;
+  "storage.buckets": StorageBuckets;
+  "storage.buckets_analytics": StorageBucketsAnalytics;
+  "storage.buckets_vectors": StorageBucketsVectors;
+  "storage.migrations": StorageMigrations;
+  "storage.objects": StorageObjects;
+  "storage.prefixes": StoragePrefixes;
+  "storage.s3_multipart_uploads": StorageS3MultipartUploads;
+  "storage.s3_multipart_uploads_parts": StorageS3MultipartUploadsParts;
+  "storage.vector_indexes": StorageVectorIndexes;
+  "vault.decrypted_secrets": VaultDecryptedSecrets;
+  "vault.secrets": VaultSecrets;
 }

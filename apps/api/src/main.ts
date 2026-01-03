@@ -18,7 +18,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: 'http://localhost:3000', // Allow your Next.js frontend
+    origin: ['http://localhost:3000', 'http://localhost:8000', 'http://localhost:3001'], // Allow your Next.js frontend
     credentials: true,
   });
 
@@ -28,12 +28,32 @@ async function bootstrap() {
     .addServer('http://localhost:8000', 'Development server')
     .setVersion('1.0')
     .setLicense('MIT', 'https://opensource.org/licenses/MIT')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth', // This name must match the one used in @ApiBearerAuth() decorators
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
 
   // Swagger UI available at /api-docs
-  SwaggerModule.setup('api-docs', app, document);
+  SwaggerModule.setup('api-docs', app, document,{swaggerOptions: {
+      persistAuthorization: true,
+      displayRequestDuration: true,
+      defaultModelsExpandDepth: 2,
+      defaultModelExpandDepth: 2,
+      docExpansion: 'list',
+      filter: true,
+      showRequestHeaders: true,
+      tryItOutEnabled: true,
+    }});
 
   // Raw Swagger JSON available at /docs-json
   app.getHttpAdapter().get('/docs-json', (req, res) => {

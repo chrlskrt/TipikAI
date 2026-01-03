@@ -10,12 +10,17 @@ export class MessageService {
   constructor(@Inject('DATABASE') private readonly db: Kysely<DB>) {}
 
   async create(chatId: string, createMessageDto: CreateMessageDto) {
+    // If content is a string, wrap it in {"text": "..."} for JSONB compatibility
+    const jsonContent = typeof createMessageDto.content === 'string'
+      ? { text: createMessageDto.content }
+      : createMessageDto.content;
+
     const newMessage = await this.db
-      .insertInto('public.messages')
+      .insertInto('messages')
       .values({
         chat_id: chatId,
         is_user: createMessageDto.isUser,
-        content: createMessageDto.content,
+        content: JSON.stringify(jsonContent), // Kysely expects JSON as string
       })
       .returningAll()
       .executeTakeFirst();
@@ -29,7 +34,7 @@ export class MessageService {
 
   async findAll(chatId: string) {
     const messages = await this.db
-      .selectFrom('public.messages')
+      .selectFrom('messages')
       .where('chat_id', '=', chatId)
       .selectAll()
       .groupBy('chat_id')

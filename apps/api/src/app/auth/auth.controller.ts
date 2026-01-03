@@ -72,6 +72,7 @@ export class AuthController {
     },
   })
   async changePassword(@Body() changePasswordDto: ChangePasswordDto) {
+    console.log("shfhhdf:",changePasswordDto);
     await this.authService.changePassword(changePasswordDto);
     return { message: 'Password changed successfully' };
   }

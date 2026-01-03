@@ -6,6 +6,7 @@ import { AuthModule } from './app/auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { ChatModule } from './app/chat/chat.module';
 import { MessageModule } from './app/message/message.module';
+import { ModelModule } from './app/model/model.module';
 import configuration from './configuration/configuration';
 
 @Module({
@@ -16,6 +17,7 @@ import configuration from './configuration/configuration';
     AuthModule,
     ChatModule,
     MessageModule,
+    ModelModule,
   ],
   controllers: [AppController],
   providers: [AppService],

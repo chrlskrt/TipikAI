@@ -12,8 +12,8 @@ import Link from "next/link";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
-    const [email, setEmail] = React.useState("");
-    const [password, setPassword] = React.useState("");
+    const [email, setEmail] = React.useState("johndoe@example.com");
+    const [password, setPassword] = React.useState("strongPass1245!");
     const [showPassword, setShowPassword] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState("");
@@ -51,7 +51,7 @@ export default function LoginPage() {
                         <Input 
                             id="email" 
                             type="email" 
-                            placeholder="m@example.com" 
+                            placeholder="john.doe@example.com" 
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required

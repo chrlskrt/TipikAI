@@ -253,8 +253,8 @@ export class AuthService {
       .execute();
 
     return {
-      accessToken: accessToken,
-      refreshToken: refreshToken,
+      access_token: accessToken,  // OAuth2 standard naming
+      refresh_token: refreshToken,
     };
   }
 }

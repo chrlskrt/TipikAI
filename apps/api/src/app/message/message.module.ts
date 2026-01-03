@@ -7,5 +7,6 @@ import { DatabaseModule } from 'src/database/database.module';
   imports: [DatabaseModule],
   controllers: [MessageController],
   providers: [MessageService],
+  exports: [MessageService], // Export for use in other modules
 })
 export class MessageModule {}

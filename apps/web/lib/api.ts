@@ -16,6 +16,30 @@ apiClient.interceptors.request.use((config) => {
     return config;
 });
 
+// Response interceptor to handle authentication errors
+apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        // If we get a 401 Unauthorized error, the token is invalid
+        if (error.response?.status === 401) {
+            // Clear the invalid token
+            localStorage.removeItem("access_token");
+            
+            // Dispatch custom event to notify the UI
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('auth-change'));
+            }
+            
+            // Redirect to home page to show sign-in button
+            // Only redirect if we're not already on the login page
+            if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+                window.location.href = '/';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 // n8n Client
 const n8nClient = axios.create({
     baseURL: process.env.NEXT_PUBLIC_N8N_BASE_URL || "http://localhost:5678",
@@ -32,68 +56,6 @@ const USE_N8N = process.env.NEXT_PUBLIC_USE_N8N === "true";
 // TypeScript Interfaces
 // ============================================
 
-export interface Dataset {
-  id: string;
-  name: string;
-  description: string;
-  rows: number;
-  columns: number;
-  source: string;
-}
-
-export interface PreprocessingOptions {
-    handleMissing: boolean;
-    normalize: boolean;
-    encodeCategorical: boolean;
-}
-
-export interface ModelCreationStep {
-  id: string;
-  name: string;
-  status: 'pending' | 'in-progress' | 'completed' | 'failed';
-  result?: any;
-}
-
-// n8n Request/Response Types
-
-export interface SearchDatasetsRequest {
-  query: string;
-  sources?: string[];
-}
-
-export interface SearchDatasetsResponse {
-  datasets: Dataset[];
-}
-
-export interface ValidatePreprocessingRequest {
-  datasetIds: string[];
-  options: PreprocessingOptions;
-}
-
-export interface ValidatePreprocessingResponse {
-  valid: boolean;
-  warnings?: string[];
-  suggestions?: string[];
-}
-
-export interface ConfigureOutputRequest {
-  datasetIds: string[];
-  preprocessing: PreprocessingOptions;
-  outputType: 'notebook' | 'model';
-}
-
-export interface ConfigureOutputResponse {
-  configured: boolean;
-  estimatedTime?: string;
-  message?: string;
-}
-
-export interface GenerateModelRequest {
-  datasetIds: string[];
-  preprocessing: PreprocessingOptions;
-  outputType: 'notebook' | 'model';
-}
-
 export interface ModelResults {
     accuracy?: number;
     precision?: number;
@@ -104,7 +66,42 @@ export interface ModelResults {
     notebookUrl?: string;
 }
 
-export interface GenerateModelResponse {
+// Two-step workflow interfaces
+export interface DatasetSearchRequest {
+  datasetQuery: string;
+  sources?: string[];
+}
+
+export interface DatasetSearchResponse {
+  message?: string;
+  data?: {
+    sessionId?: string;
+    title: string;
+    description: string;
+    url: string;
+    source: string;
+    rows?: number;
+    columns?: number;
+  };
+  // Legacy format support
+  sessionId?: string;
+  status?: 'completed' | 'failed';
+  dataset?: {
+    name: string;
+    source: string;
+    rows: number;
+    columns: number;
+    description: string;
+  };
+  error?: string;
+}
+
+export interface ModelTrainingRequest {
+  sessionId: string;
+  modelFormat: string;
+}
+
+export interface ModelTrainingResponse {
   workflowId: string;
   status: 'processing' | 'completed' | 'failed';
   results?: ModelResults;
@@ -112,190 +109,213 @@ export interface GenerateModelResponse {
 }
 
 // ============================================
-// Mock Data
+// Model API - Execution-Based Workflow
 // ============================================
 
-const MOCK_DATASETS: Dataset[] = [
-    { id: '1', name: 'Titanic Survival', description: 'Predict survival on the Titanic', rows: 891, columns: 12, source: 'Kaggle' },
-    { id: '2', name: 'Iris Species', description: 'Classify iris plant species', rows: 150, columns: 5, source: 'UCI Machine Learning Repository' },
-    { id: '3', name: 'House Prices', description: 'Predict house prices', rows: 1460, columns: 81, source: 'Kaggle' },
-    { id: '4', name: 'Breast Cancer', description: 'Diagnosis of breast cancer', rows: 569, columns: 32, source: 'UCI Machine Learning Repository' },
-    { id: '5', name: 'Customer Churn', description: 'Telecom customer churn dataset', rows: 7043, columns: 21, source: 'Kaggle' },
-    { id: '6', name: 'Credit Card Fraud', description: 'Fraud detection in transactions', rows: 284807, columns: 31, source: 'Kaggle' },
-    { id: '7', name: 'Wine Quality', description: 'Predict wine quality ratings', rows: 1599, columns: 12, source: 'UCI Machine Learning Repository' },
-    { id: '8', name: 'Diabetes Prediction', description: 'Predict diabetes occurrence', rows: 768, columns: 9, source: 'Kaggle' },
-];
+// Dataset Info (from n8n)
+export interface DatasetInfo {
+  title: string;
+  title_directory: string;
+  description: string;
+  url: string;
+  source: string;
+}
+
+// File Info (from Supabase Storage)
+export interface FileInfo {
+  filename: string;
+  path: string;
+  url: string;
+  size: number;
+  expiresAt: string;
+}
+
+// Execution Results
+export interface ExecutionResults {
+  accuracy?: number;
+  precision?: number;
+  recall?: number;
+  f1Score?: number;
+  confusionMatrix?: number[][];
+  files?: {
+    model: FileInfo;
+    notebook: FileInfo;
+  };
+}
+
+// Execution Status Response
+export interface ExecutionStatus {
+  id: string;
+  status: string;
+  currentStage?: string;
+  progress: number;
+  datasetInfo?: DatasetInfo;
+  results?: ExecutionResults;
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Start Execution Request
+export interface StartExecutionRequest {
+  modelPrompt: string;
+  modelFormat: string;
+  sources?: string[];
+  chatId?: string;
+}
+
+/**
+ * Start a new model generation execution
+ */
+export const startExecution = async (
+  request: StartExecutionRequest
+): Promise<ExecutionStatus> => {
+  try {
+    const response = await apiClient.post<ExecutionStatus>('/model/execute', request);
+    console.log('Execution started:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to start execution:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get execution status by ID
+ */
+export const getExecutionStatus = async (
+  executionId: string
+): Promise<ExecutionStatus> => {
+  try {
+    const response = await apiClient.get<ExecutionStatus>(`/model/execution/${executionId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to get execution status:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get executions by chat ID (for loading chat history)
+ */
+export const getExecutionsByChatId = async (
+  chatId: string
+): Promise<ExecutionStatus[]> => {
+  try {
+    const response = await apiClient.get<ExecutionStatus[]>(`/model/executions/chat/${chatId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to get executions for chat:', error);
+    throw error;
+  }
+};
+
+/**
+ * Cancel a running execution (graceful stop)
+ */
+export const cancelExecution = async (executionId: string): Promise<ExecutionStatus> => {
+  try {
+    const response = await apiClient.post<ExecutionStatus>(`/model/execution/${executionId}/cancel`);
+    console.log('Execution cancelled:', executionId);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to cancel execution:', error);
+    throw error;
+  }
+};
+
+/**
+ * Retry a failed execution
+ */
+export const retryExecution = async (executionId: string): Promise<ExecutionStatus> => {
+  try {
+    const response = await apiClient.post<ExecutionStatus>(`/model/execution/${executionId}/retry`);
+    console.log('Execution retried:', executionId);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to retry execution:', error);
+    throw error;
+  }
+};
 
 // ============================================
-// API Functions
+// Chat API
 // ============================================
 
-/**
- * Step 1: Search for datasets
- */
-export const searchDatasets = async (query: string, sources?: string[]): Promise<Dataset[]> => {
-    if (USE_N8N) {
-        try {
-            const endpoint = process.env.NEXT_PUBLIC_N8N_SEARCH_DATASETS || '/webhook/search-datasets';
-            const response = await n8nClient.post<SearchDatasetsResponse>(endpoint, {
-                query,
-                sources,
-            } as SearchDatasetsRequest);
-            
-            return response.data.datasets;
-        } catch (error) {
-            console.error('n8n search failed, falling back to mock data:', error);
-            // Fallback to mock
-        }
-    }
-    
-    // Mock implementation
-    console.log(`[MOCK] Searching for datasets: ${query} [${sources?.join(', ')}]`);
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve(MOCK_DATASETS.filter(d => {
-                const matchesQuery = d.name.toLowerCase().includes(query.toLowerCase()) || 
-                                   d.description.toLowerCase().includes(query.toLowerCase());
-                const matchesSource = sources && sources.length > 0 ? sources.includes(d.source) : true;
-                return matchesQuery && matchesSource;
-            }));
-        }, 500);
-    });
+export interface Chat {
+  id: string;
+  user_id: string;
+  title?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CreateChatRequest {
+  title?: string;
+}
+
+export interface CreateChatResponse {
+  message: string;
+  data: Chat;
+}
+
+export interface GetChatsResponse {
+  message: string;
+  data: Chat[];
+}
+
+// Create a new chat
+export const createChat = async (title?: string): Promise<Chat> => {
+  const response = await apiClient.post<CreateChatResponse>('/chat', {
+    title,
+  });
+  return response.data.data;
 };
 
-/**
- * Step 2: Validate preprocessing options
- */
-export const validatePreprocessing = async (
-    datasetIds: string[], 
-    options: PreprocessingOptions
-): Promise<ValidatePreprocessingResponse> => {
-    if (USE_N8N) {
-        try {
-            const endpoint = process.env.NEXT_PUBLIC_N8N_VALIDATE_PREPROCESSING || '/webhook/validate-preprocessing';
-            const response = await n8nClient.post<ValidatePreprocessingResponse>(endpoint, {
-                datasetIds,
-                options,
-            } as ValidatePreprocessingRequest);
-            
-            return response.data;
-        } catch (error) {
-            console.error('n8n validation failed, falling back to mock:', error);
-            // Fallback to mock
-        }
-    }
-    
-    // Mock implementation
-    console.log('[MOCK] Validating preprocessing:', { datasetIds, options });
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const warnings: string[] = [];
-            if (!options.handleMissing) {
-                warnings.push('Missing values may affect model performance');
-            }
-            if (!options.normalize) {
-                warnings.push('Unnormalized features may cause convergence issues');
-            }
-            
-            resolve({
-                valid: true,
-                warnings: warnings.length > 0 ? warnings : undefined,
-                suggestions: ['Consider enabling all preprocessing options for best results'],
-            });
-        }, 300);
-    });
+// Get all chats for the current user
+export const getChats = async (): Promise<Chat[]> => {
+  const response = await apiClient.get<GetChatsResponse>('/chat');
+  return response.data.data;
 };
 
-/**
- * Step 3: Configure output format
- */
-export const configureOutput = async (
-    datasetIds: string[],
-    preprocessing: PreprocessingOptions,
-    outputType: 'notebook' | 'model'
-): Promise<ConfigureOutputResponse> => {
-    if (USE_N8N) {
-        try {
-            const endpoint = process.env.NEXT_PUBLIC_N8N_CONFIGURE_OUTPUT || '/webhook/configure-output';
-            const response = await n8nClient.post<ConfigureOutputResponse>(endpoint, {
-                datasetIds,
-                preprocessing,
-                outputType,
-            } as ConfigureOutputRequest);
-            
-            return response.data;
-        } catch (error) {
-            console.error('n8n configuration failed, falling back to mock:', error);
-            // Fallback to mock
-        }
-    }
-    
-    // Mock implementation
-    console.log('[MOCK] Configuring output:', { datasetIds, preprocessing, outputType });
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const estimatedTime = outputType === 'notebook' ? '2-3 minutes' : '5-10 minutes';
-            resolve({
-                configured: true,
-                estimatedTime,
-                message: `Your ${outputType} will be ready in approximately ${estimatedTime}`,
-            });
-        }, 300);
-    });
+// Get a specific chat
+export const getChat = async (chatId: string): Promise<Chat> => {
+  const response = await apiClient.get<CreateChatResponse>(`/chat/${chatId}`);
+  return response.data.data;
 };
 
-/**
- * Step 4: Generate model and get results
- */
-export const generateModel = async (
-    datasetIds: string[],
-    preprocessing: PreprocessingOptions,
-    outputType: 'notebook' | 'model'
-): Promise<GenerateModelResponse> => {
-    if (USE_N8N) {
-        try {
-            const endpoint = process.env.NEXT_PUBLIC_N8N_GENERATE_MODEL || '/webhook/generate-model';
-            const response = await n8nClient.post<GenerateModelResponse>(endpoint, {
-                datasetIds,
-                preprocessing,
-                outputType,
-            } as GenerateModelRequest);
-            
-            return response.data;
-        } catch (error) {
-            console.error('n8n generation failed, falling back to mock:', error);
-            // Fallback to mock
-        }
-    }
-    
-    // Mock implementation
-    console.log('[MOCK] Generating model:', { datasetIds, preprocessing, outputType });
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            // Simulate model results
-            const mockResults: ModelResults = {
-                accuracy: 0.92,
-                precision: 0.89,
-                recall: 0.91,
-                f1Score: 0.90,
-                confusionMatrix: [[85, 15], [12, 88]],
-                downloadUrl: outputType === 'notebook' 
-                    ? '/downloads/model-notebook.ipynb' 
-                    : '/downloads/model.pkl',
-                notebookUrl: outputType === 'notebook' ? '/downloads/model-notebook.ipynb' : undefined,
-            };
-            
-            resolve({
-                workflowId: `workflow-${Date.now()}`,
-                status: 'completed',
-                results: mockResults,
-            });
-        }, 2000); // Simulate 2 second processing
-    });
+// Update chat title
+export const updateChatTitle = async (chatId: string, title: string): Promise<Chat> => {
+  const response = await apiClient.patch<CreateChatResponse>(`/chat/${chatId}/title`, {
+    title,
+  });
+  return response.data.data;
 };
 
-// Legacy function - kept for backwards compatibility
-export const startModelGeneration = generateModel;
+// Delete a chat
+export const deleteChat = async (chatId: string): Promise<void> => {
+  await apiClient.delete(`/chat/${chatId}`);
+};
+
+// Message interfaces
+export interface Message {
+  id: string;
+  chat_id: string;
+  is_user: boolean;
+  content: any; // JSONB - can be text or structured data
+  created_at: string;
+}
+
+export interface GetMessagesResponse {
+  message: string;
+  data: Message[];
+}
+
+// Get messages for a chat
+export const getMessages = async (chatId: string): Promise<Message[]> => {
+  const response = await apiClient.get<GetMessagesResponse>(`/chat/${chatId}/message`);
+  return response.data.data;
+};
 
 // ============================================
 // Auth API
