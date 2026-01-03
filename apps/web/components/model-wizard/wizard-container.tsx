@@ -14,7 +14,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createChat, startExecution, getExecutionStatus, cancelExecution, retryExecution, type ExecutionStatus } from "@/lib/api";
-import { Wand2, Loader2 } from "lucide-react";
+import { Wand2, Loader2, AlertCircle, RotateCcw } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface WizardContainerProps {
   loadedChatId?: string;
@@ -30,6 +38,9 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
   const [executionStatus, setExecutionStatus] = React.useState<ExecutionStatus | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isLoadingExecution, setIsLoadingExecution] = React.useState(false);
+  const [animatedProgress, setAnimatedProgress] = React.useState(0);
+  const [errorModalOpen, setErrorModalOpen] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState("");
 
   // Check if user is logged in
   const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('access_token');
@@ -58,9 +69,9 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
   // Adaptive polling based on status
   const getPollingInterval = (status: string) => {
     if (status === 'downloading' || status === 'preprocessing') {
-      return 5000; // 5 seconds for long-running stages
+      return 15000; // 15 seconds for long-running stages
     }
-    return 3000; // 3 seconds default
+    return 10000; // 10 seconds default
   };
 
   // Polling mechanism
@@ -76,8 +87,8 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
         if (['complete', 'failed', 'cancelled'].includes(status.status)) {
           return;
         }
-      } catch (error) {
-        console.error('Failed to poll execution status:', error);
+      } catch (error:any) {
+        console.error('Failed to poll execution status:', error.message);
       }
     };
 
@@ -89,6 +100,29 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
 
     return () => clearInterval(interval);
   }, [executionId, executionStatus?.status]);
+
+  // Smooth progress animation - increment gradually between polls
+  React.useEffect(() => {
+    if (!executionStatus || ['complete', 'failed', 'cancelled'].includes(executionStatus.status)) {
+      return;
+    }
+
+    const targetProgress = executionStatus.progress || 0;
+    setAnimatedProgress(targetProgress);
+
+    // Gradually increment progress every second
+    const progressInterval = setInterval(() => {
+      setAnimatedProgress(prev => {
+        const nextTarget = executionStatus.progress || 0;
+        // Don't exceed the actual progress from server
+        if (prev >= nextTarget) return prev;
+        // Increment by small amount (max 1% per second)
+        return Math.min(prev + 0.5, nextTarget);
+      });
+    }, 1000); // Update every second
+
+    return () => clearInterval(progressInterval);
+  }, [executionStatus?.progress, executionStatus?.status]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,8 +149,10 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
 
       setExecutionId(execution.id);
       setExecutionStatus(execution);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to start execution:', error);
+      setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to start execution');
+      setErrorModalOpen(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -174,12 +210,12 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
             <div className="relative pt-2">
               <div className="flex justify-between text-sm font-semibold text-muted-foreground mb-4 px-1">
                 <span>{executionStatus.currentStage || executionStatus.status}</span>
-                <span>{executionStatus.progress}% Complete</span>
+                <span>{Math.round(animatedProgress)}% Complete</span>
               </div>
               <div className="h-3 bg-secondary overflow-hidden">
                 <div
                   className="h-full bg-primary transition-all duration-300 ease-out"
-                  style={{ width: `${executionStatus.progress}%` }}
+                  style={{ width: `${animatedProgress}%` }}
                 />
               </div>
             </div>
@@ -278,6 +314,34 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
             ) : (
               /* Execution Status Display */
               <div className="space-y-6">
+                {/* Error Display for Failed Executions */}
+                {executionStatus.status === 'failed' && (
+                  <Card className="p-6 border-destructive bg-destructive/5">
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0">
+                        <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                          <AlertCircle className="h-6 w-6 text-destructive" />
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg mb-2 text-destructive">Execution Failed</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          {executionStatus.error || 'An error occurred during model generation. Please try again.'}
+                        </p>
+                        <div className="flex gap-2">
+                          <Button onClick={handleRetry} variant="destructive" size="sm">
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Retry
+                          </Button>
+                          <Button onClick={handleNewExecution} variant="outline" size="sm">
+                            Start New
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
                 {/* Dataset Info */}
                 {executionStatus.datasetInfo && (
                   <Card className="p-6">
@@ -384,6 +448,26 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
           </div>
         </div>
       </Card>
+
+      {/* Error Modal for Submission Failures */}
+      <Dialog open={errorModalOpen} onOpenChange={setErrorModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Failed to Start Execution
+            </DialogTitle>
+            <DialogDescription className="pt-4">
+              {errorMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setErrorModalOpen(false)} variant="outline">
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

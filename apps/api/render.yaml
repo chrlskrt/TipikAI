@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: tipikai-api
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: cd ../.. && pnpm install && pnpm run build --filter=api
+    startCommand: cd apps/api && pnpm run start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: USE_N8N
+        value: true
+      - key: N8N_BASE_URL
+        sync: false
+      - key: N8N_WEBHOOK_SECRET
+        sync: false
+      - key: N8N_MODEL_EXECUTION_ENDPOINT
+        value: /webhook/model-execution

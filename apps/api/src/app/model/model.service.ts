@@ -232,6 +232,7 @@ export class ModelService {
     // Handle failed status
     if (updateDto.status === 'failed' && updateDto.data?.error) {
       updateData.error_message = updateDto.data.error;
+      console.log("faildlsddf")
     }
 
     // Update execution
@@ -362,15 +363,39 @@ export class ModelService {
    * Format execution record to response DTO
    */
   private formatExecutionResponse(execution: any): ExecutionResponseDto {
+    // Helper to safely parse JSON fields
+    const safeJsonParse = (value: any, fieldName: string) => {
+      if (!value) return undefined;
+      
+      // If it's already an object, return it
+      if (typeof value === 'object') return value;
+      
+      // If it's a string, try to parse it
+      if (typeof value === 'string') {
+        // Check for invalid "[object Object]" string
+        if (value === '[object Object]') {
+          this.logger.warn(`[Execution] Invalid JSON string "[object Object]" found in ${fieldName}`);
+          return undefined;
+        }
+        
+        try {
+          return JSON.parse(value);
+        } catch (error) {
+          this.logger.error(`[Execution] Failed to parse ${fieldName}: ${error.message}`);
+          return undefined;
+        }
+      }
+      
+      return undefined;
+    };
+
     return {
       id: execution.id,
       status: execution.status,
       currentStage: execution.current_stage,
       progress: execution.progress || 0,
-      datasetInfo: execution.dataset_info
-        ? JSON.parse(execution.dataset_info)
-        : undefined,
-      results: execution.results ? JSON.parse(execution.results) : undefined,
+      datasetInfo: safeJsonParse(execution.dataset_info, 'dataset_info'),
+      results: safeJsonParse(execution.results, 'results'),
       error: execution.error_message,
       createdAt: execution.created_at,
       updatedAt: execution.updated_at,

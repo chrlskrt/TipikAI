@@ -189,8 +189,8 @@ export const getExecutionStatus = async (
   try {
     const response = await apiClient.get<ExecutionStatus>(`/model/execution/${executionId}`);
     return response.data;
-  } catch (error) {
-    console.error('Failed to get execution status:', error);
+  } catch (error: any) {
+    console.error('Failed to get execution status:', error.message);
     throw error;
   }
 };

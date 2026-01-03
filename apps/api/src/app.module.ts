@@ -7,6 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ChatModule } from './app/chat/chat.module';
 import { MessageModule } from './app/message/message.module';
 import { ModelModule } from './app/model/model.module';
+import { HealthModule } from './health/health.module';
 import configuration from './configuration/configuration';
 
 @Module({
@@ -18,6 +19,7 @@ import configuration from './configuration/configuration';
     ChatModule,
     MessageModule,
     ModelModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

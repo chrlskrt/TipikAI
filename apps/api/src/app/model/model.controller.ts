@@ -21,6 +21,7 @@ import {
   ApiResponse,
   ApiTags,
   ApiParam,
+  ApiBody,
 } from '@nestjs/swagger';
 
 @ApiTags('Model')
@@ -32,15 +33,19 @@ export class ModelController {
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Start a new model generation execution' })
+  @ApiBody({ type: StartExecutionDto })
   @ApiResponse({
     status: 201,
     description: 'Execution started successfully.',
     type: ExecutionResponseDto,
   })
   async startExecution(
-    @Body() startExecutionDto: StartExecutionDto,
+    @Body() dto: StartExecutionDto,
   ): Promise<ExecutionResponseDto> {
-    return this.modelService.startExecution(startExecutionDto);
+    console.log('[Controller] POST /model/execute - Starting execution:', JSON.stringify(dto, null, 2));
+    const result = await this.modelService.startExecution(dto);
+    console.log('[Controller] Execution started successfully:', result.id);
+    return result;
   }
 
   @Get('execution/:id')
@@ -56,7 +61,10 @@ export class ModelController {
   async getExecutionStatus(
     @Param('id') id: string,
   ): Promise<ExecutionResponseDto> {
-    return this.modelService.getExecutionStatus(id);
+    console.log('[Controller] GET /model/execution/:id - Fetching status for:', id);
+    const result = await this.modelService.getExecutionStatus(id);
+    console.log('[Controller] Status fetched:', result.status, result.progress + '%');
+    return result;
   }
 
   @Get('executions/chat/:chatId')
@@ -120,6 +128,17 @@ export class ModelController {
   async updateExecutionStatus(
     @Body() updateDto: UpdateExecutionStatusDto,
   ): Promise<ExecutionResponseDto> {
-    return this.modelService.updateExecutionStatus(updateDto);
+    console.log('[Controller] POST /model/webhook/status - Received update:', JSON.stringify({
+      executionId: updateDto.executionId,
+      status: updateDto.status,
+      progress: updateDto.progress,
+      currentStage: updateDto.currentStage,
+      hasDatasetInfo: !!updateDto.data?.datasetInfo,
+      hasModel: !!updateDto.data?.model,
+      hasNotebook: !!updateDto.data?.notebook,
+    }, null, 2));
+    const result = await this.modelService.updateExecutionStatus(updateDto);
+    console.log('[Controller] Webhook update successful');
+    return result;
   }
 }

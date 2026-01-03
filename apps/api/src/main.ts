@@ -19,7 +19,9 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:8000', 'http://localhost:3001'], // Allow your Next.js frontend
+    origin: process.env.CORS_ORIGIN 
+      ? process.env.CORS_ORIGIN.split(',')
+      : ['http://localhost:3000', 'http://localhost:8000', 'http://localhost:3001'],
     credentials: true,
   });
 
