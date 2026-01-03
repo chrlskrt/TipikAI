@@ -132,15 +132,8 @@ export interface FileInfo {
 
 // Execution Results
 export interface ExecutionResults {
-  accuracy?: number;
-  precision?: number;
-  recall?: number;
-  f1Score?: number;
-  confusionMatrix?: number[][];
-  files?: {
-    model: FileInfo;
-    notebook: FileInfo;
-  };
+  models?: FileInfo[];
+  notebooks?: FileInfo[];
 }
 
 // Execution Status Response

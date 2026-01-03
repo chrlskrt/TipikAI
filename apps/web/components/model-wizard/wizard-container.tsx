@@ -309,45 +309,45 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
                 {/* Results */}
                 {executionStatus.results && (
                   <Card className="p-6">
-                    <h3 className="font-semibold text-lg mb-4">Results</h3>
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                      {executionStatus.results.accuracy !== undefined && (
-                        <div>
-                          <span className="font-medium">Accuracy:</span> {(executionStatus.results.accuracy * 100).toFixed(2)}%
-                        </div>
-                      )}
-                      {executionStatus.results.precision !== undefined && (
-                        <div>
-                          <span className="font-medium">Precision:</span> {(executionStatus.results.precision * 100).toFixed(2)}%
-                        </div>
-                      )}
-                      {executionStatus.results.recall !== undefined && (
-                        <div>
-                          <span className="font-medium">Recall:</span> {(executionStatus.results.recall * 100).toFixed(2)}%
-                        </div>
-                      )}
-                      {executionStatus.results.f1Score !== undefined && (
-                        <div>
-                          <span className="font-medium">F1 Score:</span> {(executionStatus.results.f1Score * 100).toFixed(2)}%
-                        </div>
-                      )}
-                    </div>
+                    <h3 className="font-semibold text-lg mb-4">Models Generated Successfully!</h3>
+                    
+                    {(executionStatus.results.models || executionStatus.results.notebooks) && (
+                      <div className="space-y-4">
+                        {/* Models */}
+                        {executionStatus.results.models && executionStatus.results.models.length > 0 && (
+                          <div className="space-y-3">
+                            <h4 className="font-medium">Models</h4>
+                            <div className="grid grid-cols-1 gap-2">
+                              {executionStatus.results.models.map((model, index) => (
+                                <Button key={index} asChild className="w-full">
+                                  <a href={model.url} download>
+                                    Download Model {index + 1} ({model.filename})
+                                  </a>
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
-                    {executionStatus.results.files && (
-                      <div className="space-y-3">
-                        <h4 className="font-medium">Downloads</h4>
-                        <div className="flex gap-3">
-                          <Button asChild>
-                            <a href={executionStatus.results.files.model.url} download>
-                              Download Model ({(executionStatus.results.files.model.size / 1024 / 1024).toFixed(2)} MB)
-                            </a>
-                          </Button>
-                          <Button asChild variant="outline">
-                            <a href={executionStatus.results.files.notebook.url} download>
-                              Download Notebook ({(executionStatus.results.files.notebook.size / 1024 / 1024).toFixed(2)} MB)
-                            </a>
-                          </Button>
-                        </div>
+                        {/* Notebooks */}
+                        {executionStatus.results.notebooks && executionStatus.results.notebooks.length > 0 && (
+                          <div className="space-y-3">
+                            <h4 className="font-medium">Notebooks</h4>
+                            <div className="grid grid-cols-1 gap-2">
+                              {executionStatus.results.notebooks.map((notebook, index) => (
+                                <Button key={index} asChild variant="outline" className="w-full">
+                                  <a href={notebook.url} download>
+                                    Download Notebook {index + 1} ({notebook.filename})
+                                  </a>
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="text-xs text-muted-foreground">
+                          Download links expire on {executionStatus.results.models?.[0]?.expiresAt ? new Date(executionStatus.results.models[0].expiresAt).toLocaleDateString() : 'N/A'}
+                        </p>
                       </div>
                     )}
                   </Card>

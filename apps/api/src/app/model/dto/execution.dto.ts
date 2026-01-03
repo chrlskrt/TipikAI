@@ -96,17 +96,10 @@ export class DatasetInfoDto {
 export class FileInfoDto {
   @ApiProperty({
     description: 'Filename',
-    example: 'model.pkl',
+    example: 'model.h5',
   })
   @IsString()
   filename: string;
-
-  @ApiProperty({
-    description: 'Storage path',
-    example: 'model-outputs/abc-123/model.pkl',
-  })
-  @IsString()
-  path: string;
 
   @ApiProperty({
     description: 'Signed URL for download',
@@ -114,13 +107,6 @@ export class FileInfoDto {
   })
   @IsString()
   url: string;
-
-  @ApiProperty({
-    description: 'File size in bytes',
-    example: 1024000,
-  })
-  @IsNumber()
-  size: number;
 
   @ApiProperty({
     description: 'ISO timestamp when signed URL expires',
@@ -136,62 +122,18 @@ export class FileInfoDto {
 
 export class ExecutionResultsDto {
   @ApiProperty({
-    description: 'Model accuracy score',
-    example: 0.92,
-    required: false,
+    description: 'Generated model files (can be multiple)',
+    type: [FileInfoDto],
   })
-  @IsNumber()
   @IsOptional()
-  accuracy?: number;
+  models?: FileInfoDto[];
 
   @ApiProperty({
-    description: 'Model precision score',
-    example: 0.89,
-    required: false,
-  })
-  @IsNumber()
-  @IsOptional()
-  precision?: number;
-
-  @ApiProperty({
-    description: 'Model recall score',
-    example: 0.91,
-    required: false,
-  })
-  @IsNumber()
-  @IsOptional()
-  recall?: number;
-
-  @ApiProperty({
-    description: 'Model F1 score',
-    example: 0.9,
-    required: false,
-  })
-  @IsNumber()
-  @IsOptional()
-  f1Score?: number;
-
-  @ApiProperty({
-    description: 'Confusion matrix',
-    example: [
-      [85, 15],
-      [12, 88],
-    ],
-    required: false,
-  })
-  @IsArray()
-  @IsOptional()
-  confusionMatrix?: number[][];
-
-  @ApiProperty({
-    description: 'Generated files (model and notebook)',
-    required: false,
+    description: 'Generated notebook files (can be multiple)',
+    type: [FileInfoDto],
   })
   @IsOptional()
-  files?: {
-    model: FileInfoDto;
-    notebook: FileInfoDto;
-  };
+  notebooks?: FileInfoDto[];
 }
 
 // ============================================

@@ -193,10 +193,38 @@ export class ModelService {
         updateData.dataset_info = JSON.stringify(updateDto.data.datasetInfo);
       }
 
-      // Results (when status is complete)
-      if (updateDto.data.results) {
-        updateData.results = JSON.stringify(updateDto.data.results);
-        updateData.completed_at = new Date().toISOString();
+      // Results - ACCUMULATE models and notebooks
+      if (updateDto.data.model || updateDto.data.notebook) {
+        // Get existing results
+        let existingResults: any = {};
+        if (execution.results) {
+          try {
+            existingResults = JSON.parse(execution.results as string);
+          } catch (e) {
+            this.logger.warn('Failed to parse existing results, starting fresh');
+          }
+        }
+
+        // Initialize arrays if they don't exist
+        if (!existingResults.models) existingResults.models = [];
+        if (!existingResults.notebooks) existingResults.notebooks = [];
+
+        // Append new model if provided
+        if (updateDto.data.model) {
+          existingResults.models.push(updateDto.data.model);
+        }
+
+        // Append new notebook if provided
+        if (updateDto.data.notebook) {
+          existingResults.notebooks.push(updateDto.data.notebook);
+        }
+
+        updateData.results = JSON.stringify(existingResults);
+        
+        // Only set completed_at when status is actually complete
+        if (updateDto.status === 'complete') {
+          updateData.completed_at = new Date().toISOString();
+        }
       }
     }
 
