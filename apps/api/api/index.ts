@@ -1,45 +1,47 @@
 import { NestFactory } from '@nestjs/core';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import { AppModule } from './app.module';
+import { AppModule } from '../src/app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { RequestContextMiddleware } from './common/middlewares/request-context.middleware';
-import express from 'express';
+import { RequestContextMiddleware } from '../src/common/middlewares/request-context.middleware';
 
-const expressApp = express();
-let cachedApp;
+let app;
 
-async function createApp() {
-  if (cachedApp) {
-    return cachedApp;
+async function bootstrap() {
+  if (!app) {
+    app = await NestFactory.create(AppModule, {
+      logger: ['error', 'warn'],
+    });
+
+    app.use(new RequestContextMiddleware().use);
+    
+    app.useGlobalPipes(
+      new ValidationPipe({
+        transform: true,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    );
+
+    app.enableCors({
+      origin: true,
+      credentials: true,
+    });
+
+    await app.init();
   }
-
-  const app = await NestFactory.create(
-    AppModule,
-    new ExpressAdapter(expressApp),
-    { logger: ['error', 'warn', 'log'] }
-  );
-
-  app.use(new RequestContextMiddleware().use);
-  
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
-
-  app.enableCors({
-    origin: true, // Allow all origins in serverless
-    credentials: true,
-  });
-
-  await app.init();
-  cachedApp = app;
   return app;
 }
 
 export default async (req, res) => {
-  await createApp();
-  return expressApp(req, res);
+  try {
+    const server = await bootstrap();
+    const instance = server.getHttpAdapter().getInstance();
+    return instance(req, res);
+  } catch (error) {
+    console.error('Serverless function error:', error);
+    return res.status(500).json({
+      error: 'Internal Server Error',
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
 };
