@@ -14,15 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createChat, startExecution, getExecutionStatus, cancelExecution, retryExecution, type ExecutionStatus } from "@/lib/api";
-import { Wand2, Loader2, AlertCircle, RotateCcw } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Wand2, Loader2 } from "lucide-react";
 
 interface WizardContainerProps {
   loadedChatId?: string;
@@ -32,14 +24,12 @@ interface WizardContainerProps {
 
 export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecutionId }: WizardContainerProps = {}) {
   const [modelPrompt, setModelPrompt] = React.useState(loadedChatTitle || "");
-  const [modelFormat, setModelFormat] = React.useState("keras");
+  const [modelFormat, setModelFormat] = React.useState("pickle");
   const [currentChatId, setCurrentChatId] = React.useState<string | null>(loadedChatId || null);
   const [executionId, setExecutionId] = React.useState<string | null>(loadedExecutionId || null);
   const [executionStatus, setExecutionStatus] = React.useState<ExecutionStatus | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isLoadingExecution, setIsLoadingExecution] = React.useState(false);
-  const [errorModalOpen, setErrorModalOpen] = React.useState(false);
-  const [errorMessage, setErrorMessage] = React.useState("");
 
   // Check if user is logged in
   const isLoggedIn = typeof window !== 'undefined' && !!localStorage.getItem('access_token');
@@ -77,8 +67,6 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
   React.useEffect(() => {
     if (!executionId) return;
 
-    let intervalId: NodeJS.Timeout | null = null;
-
     const poll = async () => {
       try {
         const status = await getExecutionStatus(executionId);
@@ -86,10 +74,7 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
 
         // Stop polling if execution is complete, failed, or cancelled
         if (['complete', 'failed', 'cancelled'].includes(status.status)) {
-          if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-          }
+          return;
         }
       } catch (error) {
         console.error('Failed to poll execution status:', error);
@@ -100,14 +85,9 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
     poll();
 
     // Set up interval based on current status
-    const pollingInterval = getPollingInterval(executionStatus?.status || '');
-    intervalId = setInterval(poll, pollingInterval);
+    const interval = setInterval(poll, getPollingInterval(executionStatus?.status || ''));
 
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
+    return () => clearInterval(interval);
   }, [executionId, executionStatus?.status]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -135,11 +115,8 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
 
       setExecutionId(execution.id);
       setExecutionStatus(execution);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to start execution:', error);
-      // Show error modal instead of alert
-      setErrorMessage(error?.response?.data?.message || error?.message || 'Unknown error occurred');
-      setErrorModalOpen(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -269,12 +246,6 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
                           <span className="text-xs text-muted-foreground">Deep learning, PyTorch ecosystem, research-friendly</span>
                         </div>
                       </SelectItem>
-                      <SelectItem value="keras">
-                        <div className="flex gap-5 items-baseline">
-                          <span className="font-medium">Keras (.keras)</span>
-                          <span className="text-xs text-muted-foreground">High-level API, TensorFlow 2.x native format</span>
-                        </div>
-                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
@@ -282,7 +253,6 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
                     {modelFormat === 'onnx' && '💡 Best for cross-platform deployment and production environments'}
                     {modelFormat === 'tensorflow' && '💡 Best for deep learning models using TensorFlow/Keras'}
                     {modelFormat === 'pytorch' && '💡 Best for deep learning research and PyTorch models'}
-                    {modelFormat === 'keras' && '💡 Best for TensorFlow 2.x models with Keras API'}
                   </p>
                 </div>
 
@@ -308,34 +278,6 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
             ) : (
               /* Execution Status Display */
               <div className="space-y-6">
-                {/* Error Display */}
-                {executionStatus.status === 'failed' && (
-                  <Card className="p-6 border-destructive">
-                    <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0">
-                        <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                          <AlertCircle className="h-6 w-6 text-destructive" />
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-2 text-destructive">Execution Failed</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          {executionStatus.errorMessage || 'An error occurred during model generation. Please try again.'}
-                        </p>
-                        <div className="flex gap-2">
-                          <Button onClick={handleRetry} variant="destructive">
-                            <RotateCcw className="mr-2 h-4 w-4" />
-                            Retry
-                          </Button>
-                          <Button onClick={handleNewExecution} variant="outline">
-                            Start New
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                )}
-
                 {/* Dataset Info */}
                 {executionStatus.datasetInfo && (
                   <Card className="p-6">
@@ -442,26 +384,6 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
           </div>
         </div>
       </Card>
-
-      {/* Error Modal */}
-      <Dialog open={errorModalOpen} onOpenChange={setErrorModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-5 w-5" />
-              Failed to Start Execution
-            </DialogTitle>
-            <DialogDescription className="pt-4">
-              {errorMessage}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setErrorModalOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -132,8 +132,15 @@ export interface FileInfo {
 
 // Execution Results
 export interface ExecutionResults {
-  models?: FileInfo[];
-  notebooks?: FileInfo[];
+  accuracy?: number;
+  precision?: number;
+  recall?: number;
+  f1Score?: number;
+  confusionMatrix?: number[][];
+  files?: {
+    model: FileInfo;
+    notebook: FileInfo;
+  };
 }
 
 // Execution Status Response
@@ -144,7 +151,7 @@ export interface ExecutionStatus {
   progress: number;
   datasetInfo?: DatasetInfo;
   results?: ExecutionResults;
-  errorMessage?: string;
+  error?: string;
   createdAt: string;
   updatedAt: string;
 }

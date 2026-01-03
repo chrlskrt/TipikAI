@@ -371,7 +371,7 @@ export class ModelService {
         ? JSON.parse(execution.dataset_info)
         : undefined,
       results: execution.results ? JSON.parse(execution.results) : undefined,
-      errorMessage: execution.error_message,
+      error: execution.error_message,
       createdAt: execution.created_at,
       updatedAt: execution.updated_at,
     };
