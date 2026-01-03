@@ -51,7 +51,17 @@ export default function Home() {
         document.documentElement.classList.toggle('dark', theme === 'dark');
     }, [theme]);
 
+    // Redirect to login if not authenticated
+    React.useEffect(() => {
+        if (mounted && !isLoggedIn) {
+            router.push('/login');
+        }
+    }, [mounted, isLoggedIn, router]);
+
     if (!mounted) return null;
+
+    // Show nothing while redirecting
+    if (!isLoggedIn) return null;
 
     const handleNewWizard = () => {
         // Clear loaded state
@@ -97,37 +107,21 @@ export default function Home() {
 
     return (
         <main className="flex h-screen w-full bg-background overflow-hidden font-sans text-foreground relative">
-            {/* Top-left auth button - only show if not logged in */}
-            {!isLoggedIn && (
-                <div className="absolute top-4 left-4 z-50">
-                    <Button 
-                        onClick={() => router.push('/login')}
-                        variant="outline"
-                        className="gap-2"
-                    >
-                        <LogIn className="h-4 w-4" />
-                        Sign In / Register
-                    </Button>
+            {/* Sidebar / Creation History */}
+            <aside 
+                className={`
+                    border-r bg-muted/20 transition-all duration-300 ease-in-out
+                    ${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full opacity-0 overflow-hidden'}
+                    hidden md:block h-full
+                `}
+            >
+                <div className="h-full w-64">
+                     <WizardHistory 
+                        onNewWizard={handleNewWizard}
+                        onSelectChat={handleSelectChat}
+                     />
                 </div>
-            )}
-
-            {/* Sidebar / Creation History - only show if logged in */}
-            {isLoggedIn && (
-                <aside 
-                    className={`
-                        border-r bg-muted/20 transition-all duration-300 ease-in-out
-                        ${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full opacity-0 overflow-hidden'}
-                        hidden md:block h-full
-                    `}
-                >
-                    <div className="h-full w-64">
-                         <WizardHistory 
-                            onNewWizard={handleNewWizard}
-                            onSelectChat={handleSelectChat}
-                         />
-                    </div>
-                </aside>
-            )}
+            </aside>
 
             {/* Main Content Area */}
             <section className="flex-1 flex flex-col h-full relative bg-background">

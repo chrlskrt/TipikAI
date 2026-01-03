@@ -114,17 +114,18 @@ export class ModelService {
     } catch (error) {
       this.logger.error('[Execution] Failed to trigger n8n:', error.message);
 
+      const error_message = `Failed to start workflow: ${error.message}`
       // Update execution status to failed
       await this.db['db']
         .updateTable('executions')
         .set({
           status: 'failed',
-          error_message: `Failed to start workflow: ${error.message}`,
+          error_message: error_message,
         })
         .where('id', '=', execution.id)
         .execute();
 
-      throw new Error(`Failed to start execution: ${error.message}`);
+      throw new Error(`Failed to start execution: ${error_message}`);
     }
 
     return this.formatExecutionResponse(execution);
@@ -370,7 +371,7 @@ export class ModelService {
         ? JSON.parse(execution.dataset_info)
         : undefined,
       results: execution.results ? JSON.parse(execution.results) : undefined,
-      error: execution.error_message,
+      errorMessage: execution.error_message,
       createdAt: execution.created_at,
       updatedAt: execution.updated_at,
     };

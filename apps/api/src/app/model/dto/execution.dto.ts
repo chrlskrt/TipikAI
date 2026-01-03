@@ -207,7 +207,7 @@ export class ExecutionResponseDto {
   })
   @IsString()
   @IsOptional()
-  error?: string;
+  errorMessage?: string;
 
   @ApiProperty({
     description: 'Execution creation timestamp',
@@ -267,7 +267,6 @@ export class UpdateExecutionStatusDto {
     description: 'Stage-specific data (dataset info, results, etc.)',
     required: false,
   })
-  @IsObject()
   @IsOptional()
   data?: any;
 }

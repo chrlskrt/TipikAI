@@ -144,7 +144,7 @@ export interface ExecutionStatus {
   progress: number;
   datasetInfo?: DatasetInfo;
   results?: ExecutionResults;
-  error?: string;
+  errorMessage?: string;
   createdAt: string;
   updatedAt: string;
 }

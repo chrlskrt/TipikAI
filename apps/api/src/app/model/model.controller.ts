@@ -120,6 +120,16 @@ export class ModelController {
   async updateExecutionStatus(
     @Body() updateDto: UpdateExecutionStatusDto,
   ): Promise<ExecutionResponseDto> {
-    return this.modelService.updateExecutionStatus(updateDto);
+    try {
+      console.log('[Webhook] Received status update:', JSON.stringify(updateDto, null, 2));
+      const result = await this.modelService.updateExecutionStatus(updateDto);
+      console.log('[Webhook] Status updated successfully');
+      return result;
+    } catch (error) {
+      console.error('[Webhook] Error updating status:', error);
+      console.error('[Webhook] Error stack:', error.stack);
+      console.error('[Webhook] Update DTO:', JSON.stringify(updateDto, null, 2));
+      throw error;
+    }
   }
 }
