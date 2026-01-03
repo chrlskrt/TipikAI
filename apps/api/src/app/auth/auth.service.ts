@@ -12,8 +12,8 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { AccessTokenPayload } from 'src/common/types/jwt.types';
-import { getCurrentRequest } from 'src/common/utils/request-context';
 import { LoginDto } from './dto/login.dto';
+import { getCurrentRequest } from 'src/common/utils/request-context';
 
 export interface JwtPayload {
   sub: number;
