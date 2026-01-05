@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { DatabaseService } from '../../database/database.service';
 import { getCurrentRequest } from '../../common/utils/request-context';
+import { ModelGateway } from './model.gateway';
 import {
   StartExecutionDto,
   ExecutionResponseDto,
@@ -20,6 +21,7 @@ export class ModelService {
   constructor(
     private readonly configService: ConfigService,
     private readonly db: DatabaseService,
+    private readonly modelGateway: ModelGateway,
   ) {
     this.useN8n = this.configService.get<string>('USE_N8N') === 'true';
     const n8nBaseUrl = this.configService.get<string>('N8N_BASE_URL');
@@ -280,7 +282,11 @@ export class ModelService {
 
     this.logger.log(`[Execution] Updated: ${updatedExecution.id} -> ${updatedExecution.status}`);
 
-    return this.formatExecutionResponse(updatedExecution);
+    // Broadcast update via WebSocket to all connected clients
+    const formattedResponse = this.formatExecutionResponse(updatedExecution);
+    this.modelGateway.broadcastExecutionUpdate(updatedExecution.id, formattedResponse);
+
+    return formattedResponse;
   }
 
   /**

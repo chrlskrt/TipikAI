@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createChat, startExecution, getExecutionStatus, cancelExecution, retryExecution, type ExecutionStatus } from "@/lib/api";
+import { createChat, startExecution, getExecutionStatus, cancelExecution, retryExecution, getSocket, disconnectSocket, type ExecutionStatus } from "@/lib/api";
 import { Wand2, Loader2, AlertCircle, RotateCcw } from "lucide-react";
 import {
   Dialog,
@@ -32,7 +32,7 @@ interface WizardContainerProps {
 
 export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecutionId }: WizardContainerProps = {}) {
   const [modelPrompt, setModelPrompt] = React.useState(loadedChatTitle || "");
-  const [modelFormat, setModelFormat] = React.useState("pickle");
+  const [modelFormat, setModelFormat] = React.useState("keras");
   const [currentChatId, setCurrentChatId] = React.useState<string | null>(loadedChatId || null);
   const [executionId, setExecutionId] = React.useState<string | null>(loadedExecutionId || null);
   const [executionStatus, setExecutionStatus] = React.useState<ExecutionStatus | null>(null);
@@ -66,51 +66,43 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
     }
   }, [loadedExecutionId]);
 
-  // Adaptive polling based on status
-  const getPollingInterval = (status: string) => {
-    switch (status) {
-      case 'searching_dataset':
-        return 15000; // 15 seconds - searching for dataset
-      case 'dataset_found':
-        return 3000; // 3 seconds - quick check after dataset found
-      case 'downloading':
-      case 'preprocessing':
-        return 15000; // 15 seconds - long-running preprocessing
-      case 'training':
-        return 15000; // 15 seconds - model training
-      case 'pending':
-        return 2000; // 2 seconds - just started, check quickly
-      default:
-        return 5000; // 5 seconds default
-    }
-  };
-
-  // Polling mechanism
+  // WebSocket connection for real-time updates
   React.useEffect(() => {
     if (!executionId) return;
 
-    const poll = async () => {
-      try {
-        const status = await getExecutionStatus(executionId);
-        setExecutionStatus(status);
+    const socket = getSocket();
 
-        // Stop polling if execution is complete, failed, or cancelled
-        if (['complete', 'failed', 'cancelled'].includes(status.status)) {
-          return;
-        }
-      } catch (error:any) {
-        console.error('Failed to poll execution status:', error.message);
-      }
+    // Join the execution room
+    socket.emit('join-execution', executionId);
+    console.log('[WebSocket] Joined execution room:', executionId);
+
+    // Listen for real-time execution updates
+    const handleExecutionUpdate = (data: ExecutionStatus) => {
+      console.log('[WebSocket] Received update:', data);
+      setExecutionStatus(data);
+      // Close error modal if it's open, since we're receiving updates
+      setErrorModalOpen(false);
     };
 
-    // Initial poll - immediate
-    poll();
+    socket.on('execution-update', handleExecutionUpdate);
 
-    // Set up interval based on current status
-    const interval = setInterval(poll, getPollingInterval(executionStatus?.status || 'pending'));
+    // Cleanup on unmount or when executionId changes
+    return () => {
+      socket.off('execution-update', handleExecutionUpdate);
+      socket.emit('leave-execution', executionId);
+      console.log('[WebSocket] Left execution room:', executionId);
+    };
+  }, [executionId]);
 
-    return () => clearInterval(interval);
-  }, [executionId, executionStatus?.status]);
+  // Disconnect socket when component unmounts
+  React.useEffect(() => {
+    return () => {
+      // Only disconnect if there's no active execution
+      if (!executionId || ['complete', 'failed', 'cancelled'].includes(executionStatus?.status || '')) {
+        disconnectSocket();
+      }
+    };
+  }, []);
 
   // Smooth progress animation - increment gradually between polls
   React.useEffect(() => {
@@ -246,7 +238,16 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
           {executionStatus && (
             <div className="relative pt-2">
               <div className="flex justify-between text-sm font-semibold text-muted-foreground mb-4 px-1">
-                <span>{executionStatus.currentStage || executionStatus.status}</span>
+                <span className="flex items-center gap-1">
+                  {executionStatus.currentStage || executionStatus.status}
+                  {isExecuting && (
+                    <span className="inline-flex gap-[2px] ml-1">
+                      <span className="w-1 h-1 bg-muted-foreground rounded-full animate-[bounce_1.4s_ease-in-out_0s_infinite]"></span>
+                      <span className="w-1 h-1 bg-muted-foreground rounded-full animate-[bounce_1.4s_ease-in-out_0.2s_infinite]"></span>
+                      <span className="w-1 h-1 bg-muted-foreground rounded-full animate-[bounce_1.4s_ease-in-out_0.4s_infinite]"></span>
+                    </span>
+                  )}
+                </span>
                 <span>{Math.round(executionStatus.progress)}% Complete</span>
               </div>
               <div className="h-4 bg-primary/15 rounded-full overflow-hidden border border-primary/10">
@@ -290,11 +291,17 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
 
                 <div className="space-y-2">
                   <Label htmlFor="modelFormat">Model Format</Label>
-                  <Select value={modelFormat} onValueChange={setModelFormat}>
+                  <Select value={modelFormat} onValueChange={setModelFormat} disabled>
                     <SelectTrigger id="modelFormat">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="keras">
+                        <div className="flex gap-5 items-baseline">
+                          <span className="font-medium">Keras (.keras)</span>
+                          <span className="text-xs text-muted-foreground">Deep learning, modern Keras 3 format</span>
+                        </div>
+                      </SelectItem>
                       <SelectItem value="pickle">
                         <div className="flex gap-5 items-baseline">
                           <span className="font-medium">Pickle (.pkl)</span>
@@ -322,6 +329,7 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
+                    {modelFormat === 'keras' && '💡 Best for deep learning models using modern Keras 3 format'}
                     {modelFormat === 'pickle' && '💡 Best for Python-only projects with scikit-learn models'}
                     {modelFormat === 'onnx' && '💡 Best for cross-platform deployment and production environments'}
                     {modelFormat === 'tensorflow' && '💡 Best for deep learning models using TensorFlow/Keras'}

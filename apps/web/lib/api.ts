@@ -1,5 +1,6 @@
 
 import axios from "axios";
+import { io, Socket } from "socket.io-client";
 
 const apiClient = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
@@ -39,6 +40,66 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+// ============================================
+// WebSocket Connection
+// ============================================
+
+let socket: Socket | null = null;
+
+/**
+ * Create a Socket.IO client connection to the backend
+ */
+export const createSocketConnection = (): Socket => {
+    if (socket && socket.connected) {
+        return socket;
+    }
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    
+    socket = io(apiUrl, {
+        autoConnect: true,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5,
+        transports: ['websocket', 'polling'],
+    });
+
+    socket.on('connect', () => {
+        console.log('[WebSocket] Connected:', socket?.id);
+    });
+
+    socket.on('disconnect', (reason) => {
+        console.log('[WebSocket] Disconnected:', reason);
+    });
+
+    socket.on('connect_error', (error) => {
+        console.error('[WebSocket] Connection error:', error.message);
+    });
+
+    return socket;
+};
+
+/**
+ * Get the current socket instance (or create one if not exists)
+ */
+export const getSocket = (): Socket => {
+    if (!socket) {
+        return createSocketConnection();
+    }
+    return socket;
+};
+
+/**
+ * Disconnect the socket
+ */
+export const disconnectSocket = () => {
+    if (socket) {
+        socket.disconnect();
+        socket = null;
+    }
+};
+
 
 // n8n Client
 const n8nClient = axios.create({
@@ -137,6 +198,8 @@ export interface ExecutionResults {
   recall?: number;
   f1Score?: number;
   confusionMatrix?: number[][];
+  models?: FileInfo[];
+  notebooks?: FileInfo[];
   files?: {
     model: FileInfo;
     notebook: FileInfo;
