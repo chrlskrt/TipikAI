@@ -1,0 +1,28 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# API app (backend)
+apps/api
+
+# Build outputs
+.turbo
+.next
+dist
+build
+
+# Environment files
+.env.local
+.env*.local
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Other
+*.log
+.git
