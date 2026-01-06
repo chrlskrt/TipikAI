@@ -1,28 +1,5 @@
-# Dependencies
-node_modules
-.pnpm-store
-
-# API app (backend)
+# Exclude backend API
 apps/api
 
-# Build outputs
-.turbo
-.next
-dist
-build
-
-# Environment files
-.env.local
-.env*.local
-
-# IDE
-.vscode
-.idea
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Other
-*.log
-.git
+# Keep-alive script for Render
+keep-render-awake.js
