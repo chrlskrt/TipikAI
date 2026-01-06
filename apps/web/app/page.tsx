@@ -85,7 +85,10 @@ export default function Home() {
             
             // Get the most recent execution if any
             if (executions && executions.length > 0) {
-                setLoadedExecutionId(executions[0].id);
+                const mostRecentExecution = executions[0];
+                if (mostRecentExecution) {
+                    setLoadedExecutionId(mostRecentExecution.id);
+                }
             } else {
                 setLoadedExecutionId(undefined);
             }
