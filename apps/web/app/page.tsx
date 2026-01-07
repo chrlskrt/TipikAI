@@ -4,9 +4,16 @@
 import * as React from "react";
 import { WizardHistory } from "@/components/model-wizard/wizard-history";
 import { WizardContainer } from "@/components/model-wizard/wizard-container";
-import { Moon, Sun, LogIn } from "lucide-react";
+import { Moon, Sun, LogIn, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function Home() {
     const router = useRouter();
@@ -18,6 +25,8 @@ export default function Home() {
     const [loadedMessages, setLoadedMessages] = React.useState<any[]>([]);
     const [loadedChatTitle, setLoadedChatTitle] = React.useState<string | undefined>();
     const [loadedExecutionId, setLoadedExecutionId] = React.useState<string | undefined>();
+    const [isLoadingChat, setIsLoadingChat] = React.useState(false);
+    const [selectedChatId, setSelectedChatId] = React.useState<string | undefined>();
 
     React.useEffect(() => {
         setMounted(true);
@@ -63,6 +72,9 @@ export default function Home() {
     };
 
     const handleSelectChat = async (chatId: string) => {
+        setIsLoadingChat(true);
+        setSelectedChatId(chatId);
+        
         try {
             console.log('Loading chat:', chatId);
             const { getMessages, getChat, getExecutionsByChatId } = await import('@/lib/api');
@@ -95,6 +107,9 @@ export default function Home() {
             
         } catch (error) {
             console.error('Failed to load chat:', error);
+        } finally {
+            setIsLoadingChat(false);
+            setSelectedChatId(undefined);
         }
     };
 
@@ -127,6 +142,7 @@ export default function Home() {
                          <WizardHistory 
                             onNewWizard={handleNewWizard}
                             onSelectChat={handleSelectChat}
+                            selectedChatId={selectedChatId}
                          />
                     </div>
                 </aside>
@@ -137,7 +153,7 @@ export default function Home() {
                  {/* Header */}
                 <header className="h-14 px-4 flex items-center justify-between border-b bg-background sticky top-0 z-20">
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
+                         <div className="flex items-center gap-2">
                              <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-primary-foreground font-bold text-xs">
                                 T
                             </div>
@@ -179,6 +195,27 @@ export default function Home() {
                     />
                 </div>
             </section>
+
+            {/* Loading Modal */}
+            <Dialog open={isLoadingChat} onOpenChange={() => {}}>
+                <DialogContent className="sm:max-w-md [&>button]:hidden">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-3">
+                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                            Loading Chat History
+                        </DialogTitle>
+                        <DialogDescription className="pt-2">
+                            Fetching your chat details and execution history...
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex items-center justify-center py-6">
+                        <div className="flex flex-col items-center gap-4">
+                            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                            <p className="text-sm text-muted-foreground">Please wait</p>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </main>
     );
 }

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Plus, Wand2, Clock, Trash2 } from "lucide-react";
+import { Plus, Wand2, Clock, Trash2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getChats, deleteChat, Chat } from "@/lib/api";
 
@@ -11,9 +11,10 @@ interface WizardHistoryProps {
     className?: string;
     onNewWizard: () => void;
     onSelectChat?: (chatId: string) => void;
+    selectedChatId?: string;
 }
 
-export function WizardHistory({ className, onNewWizard, onSelectChat }: WizardHistoryProps) {
+export function WizardHistory({ className, onNewWizard, onSelectChat, selectedChatId }: WizardHistoryProps) {
     const [history, setHistory] = React.useState<Chat[]>([]);
     const [loading, setLoading] = React.useState(true);
 
@@ -85,34 +86,46 @@ export function WizardHistory({ className, onNewWizard, onSelectChat }: WizardHi
                             No wizards yet
                         </div>
                     ) : (
-                        history.map((chat) => (
-                            <div 
-                                key={chat.id} 
-                                className="p-3 border bg-card hover:border-primary/50 cursor-pointer transition-all duration-200 group relative overflow-hidden"
-                                onClick={() => onSelectChat?.(chat.id)}
-                            >
-                                <div className="flex flex-col gap-1 z-10 relative">
-                                    <div className="flex items-center gap-2">
-                                        <Wand2 className="h-4 w-4 text-primary/70 group-hover:text-primary transition-colors" />
-                                        <span className="font-medium text-sm truncate flex-1">
-                                            {chat.title || 'Untitled Wizard'}
-                                        </span>
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            onClick={(e) => handleDelete(chat.id, e)}
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                    <div className="flex items-center text-[10px] text-muted-foreground">
-                                        <Clock className="h-3 w-3 mr-1" />
-                                        {formatDate(chat.created_at)}
+                        history.map((chat) => {
+                            const isLoading = selectedChatId === chat.id;
+                            return (
+                                <div 
+                                    key={chat.id} 
+                                    className={cn(
+                                        "p-3 border bg-card hover:border-primary/50 cursor-pointer transition-all duration-200 group relative overflow-hidden",
+                                        isLoading && "opacity-50 pointer-events-none border-primary"
+                                    )}
+                                    onClick={() => onSelectChat?.(chat.id)}
+                                >
+                                    <div className="flex flex-col gap-1 z-10 relative">
+                                        <div className="flex items-center gap-2">
+                                            {isLoading ? (
+                                                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                                            ) : (
+                                                <Wand2 className="h-4 w-4 text-primary/70 group-hover:text-primary transition-colors" />
+                                            )}
+                                            <span className="font-medium text-sm truncate flex-1">
+                                                {chat.title || 'Untitled Wizard'}
+                                            </span>
+                                            {!isLoading && (
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={(e) => handleDelete(chat.id, e)}
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center text-[10px] text-muted-foreground">
+                                            <Clock className="h-3 w-3 mr-1" />
+                                            {formatDate(chat.created_at)}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
             </ScrollArea>
