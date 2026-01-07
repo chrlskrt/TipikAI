@@ -10,12 +10,12 @@ export class ChatService {
 
   async create(createChatDto?: CreateChatDto) {
     const req = getCurrentRequest();
-    const user = req['user'];
+    const user = req ? req['user'] : null;
 
     const newChat = await this.db
       .insertInto('chats')
       .values({ 
-        user_id: user.id,
+        user_id: user?.id || null,
         title: createChatDto?.title || null,
       })
       .returningAll()
@@ -30,7 +30,11 @@ export class ChatService {
 
   async findAll() {
     const req = getCurrentRequest();
-    const user = req['user'];
+    const user = req ? req['user'] : null;
+
+    if (!user) {
+      return []; // Return empty list for unauthenticated requests
+    }
 
     const chats = await this.db
       .selectFrom('chats')
@@ -44,14 +48,24 @@ export class ChatService {
 
   async findOne(chatId: string) {
     const req = getCurrentRequest();
-    const user = req['user'];
+    const user = req ? req['user'] : null;
 
-    const chat = await this.db
+    let query = this.db
       .selectFrom('chats')
-      .where('id', '=', chatId)
-      .where('user_id', '=', user.id)
-      .selectAll()
-      .executeTakeFirst();
+      .where('id', '=', chatId);
+
+    // If user is logged in, they can only see their own chats
+    // If not logged in, they can see the chat if it's public (user_id is null)
+    if (user) {
+      query = query.where((eb) => eb.or([
+        eb('user_id', '=', user.id),
+        eb('user_id', 'is', null)
+      ]));
+    } else {
+      query = query.where('user_id', 'is', null);
+    }
+
+    const chat = await query.selectAll().executeTakeFirst();
 
     if (!chat) {
       throw new NotFoundException(`Chat with ID ${chatId} not found.`);

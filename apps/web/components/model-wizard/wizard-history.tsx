@@ -12,16 +12,17 @@ interface WizardHistoryProps {
     onNewWizard: () => void;
     onSelectChat?: (chatId: string) => void;
     selectedChatId?: string;
+    refreshTrigger?: number;
 }
 
-export function WizardHistory({ className, onNewWizard, onSelectChat, selectedChatId }: WizardHistoryProps) {
+export function WizardHistory({ className, onNewWizard, onSelectChat, selectedChatId, refreshTrigger = 0 }: WizardHistoryProps) {
     const [history, setHistory] = React.useState<Chat[]>([]);
     const [loading, setLoading] = React.useState(true);
 
     // Load chat history
     React.useEffect(() => {
         loadHistory();
-    }, []);
+    }, [refreshTrigger]);
 
     const loadHistory = async () => {
         try {

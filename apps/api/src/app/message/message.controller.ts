@@ -14,10 +14,10 @@ import { UpdateMessageDto } from './dto/update-message.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SuccessResponseDto } from '../../common/dto/response.dto';
+import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
 
 @Controller('chat/:chatId/message')
-@UseGuards(AuthGuard('jwt'))
-@ApiBearerAuth('JWT-auth')
+@UseGuards(OptionalJwtAuthGuard)
 export class MessageController {
   constructor(private readonly messageService: MessageService) {}
 

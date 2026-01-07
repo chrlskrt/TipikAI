@@ -374,10 +374,40 @@ export interface GetMessagesResponse {
   data: Message[];
 }
 
+export interface CreateMessageResponse {
+  message: string;
+  data: Message;
+}
+
 // Get messages for a chat
 export const getMessages = async (chatId: string): Promise<Message[]> => {
   const response = await apiClient.get<GetMessagesResponse>(`/chat/${chatId}/message`);
   return response.data.data;
+};
+
+// Save a new message to a chat
+export const saveMessage = async (chatId: string, isUser: boolean, content: any): Promise<Message> => {
+  const messagePreview = typeof content === 'string' ? content.substring(0, 50) : 'object';
+  console.log(`[API] Saving ${isUser ? 'user' : 'bot'} message for chat ${chatId}:`, { preview: messagePreview });
+  
+  try {
+    const response = await apiClient.post<CreateMessageResponse>(`/chat/${chatId}/message`, {
+      isUser,
+      content,
+    });
+    console.log(`[API] Message saved successfully. ID: ${response.data.data.id}`);
+    return response.data.data;
+  } catch (error: any) {
+    const status = error.response?.status;
+    const errorData = error.response?.data;
+    
+    console.error(`[API] Failed to save message (Status: ${status}):`, {
+      chatId,
+      error: error.message,
+      details: errorData || 'No response data'
+    });
+    throw error;
+  }
 };
 
 // ============================================

@@ -4,7 +4,9 @@
 import * as React from "react";
 import { WizardHistory } from "@/components/model-wizard/wizard-history";
 import { WizardContainer } from "@/components/model-wizard/wizard-container";
-import { Moon, Sun, LogIn, Loader2 } from "lucide-react";
+import { ModeSelection } from "@/components/model-wizard/mode-selection";
+import { ChatInterface } from "@/components/model-wizard/chat-interface";
+import { Moon, Sun, LogIn, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import {
@@ -14,6 +16,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function Home() {
     const router = useRouter();
@@ -27,6 +30,11 @@ export default function Home() {
     const [loadedExecutionId, setLoadedExecutionId] = React.useState<string | undefined>();
     const [isLoadingChat, setIsLoadingChat] = React.useState(false);
     const [selectedChatId, setSelectedChatId] = React.useState<string | undefined>();
+    const [mode, setMode] = React.useState<'selection' | 'one-prompt' | 'step-by-step'>(
+        'selection'
+    );
+    const [hasChatted, setHasChatted] = React.useState(false);
+    const [refreshTrigger, setRefreshTrigger] = React.useState(0);
 
     React.useEffect(() => {
         setMounted(true);
@@ -68,7 +76,27 @@ export default function Home() {
         setLoadedMessages([]);
         setLoadedChatTitle(undefined);
         setLoadedExecutionId(undefined);
-        window.location.reload();
+        setHasChatted(false);
+        setMode('selection');
+    };
+
+    const handleModeSelect = async (selectedMode: 'one-prompt' | 'step-by-step') => {
+        setMode(selectedMode);
+        
+        // If step-by-step is selected and we don't have a chat loaded, create one
+        if (selectedMode === 'step-by-step' && !loadedChatId) {
+            try {
+                const { createChat } = await import('@/lib/api');
+                const newChat = await createChat('New ML Assistant Chat');
+                setLoadedChatId(newChat.id);
+            } catch (error) {
+                console.error('Failed to create initial chat for step-by-step:', error);
+            }
+        }
+    };
+
+    const handleBackToSelection = () => {
+        setMode('selection');
     };
 
     const handleSelectChat = async (chatId: string) => {
@@ -94,6 +122,7 @@ export default function Home() {
             setLoadedChatId(chatId);
             setLoadedMessages(messages);
             setLoadedChatTitle(chat.title || undefined);
+            setHasChatted(messages.length > 0);
             
             // Get the most recent execution if any
             if (executions && executions.length > 0) {
@@ -101,8 +130,16 @@ export default function Home() {
                 if (mostRecentExecution) {
                     setLoadedExecutionId(mostRecentExecution.id);
                 }
+                // If it has executions, it was likely a one-prompt mode
+                setMode('one-prompt');
             } else {
                 setLoadedExecutionId(undefined);
+                // If it has messages but no executions, it's a step-by-step chat
+                if (messages.length > 0 || (chat.title && chat.title.toLowerCase().includes('assistant'))) {
+                    setMode('step-by-step');
+                } else {
+                    setMode('one-prompt');
+                }
             }
             
         } catch (error) {
@@ -111,6 +148,11 @@ export default function Home() {
             setIsLoadingChat(false);
             setSelectedChatId(undefined);
         }
+    };
+
+    const handleMessageSaved = () => {
+        setHasChatted(true);
+        setRefreshTrigger(prev => prev + 1);
     };
 
     return (
@@ -129,24 +171,25 @@ export default function Home() {
                 </div>
             )}
 
-            {/* Sidebar / Creation History - only show if logged in */}
-            {isLoggedIn && (
-                <aside 
-                    className={`
-                        border-r bg-muted/20 transition-all duration-300 ease-in-out
-                        ${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full opacity-0 overflow-hidden'}
-                        hidden md:block h-full
-                    `}
-                >
-                    <div className="h-full w-64">
+            {/* Sidebar / Creation History */}
+            <aside 
+                className={`
+                    border-r bg-muted/20 transition-all duration-300 ease-in-out
+                    ${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full opacity-0 overflow-hidden'}
+                    hidden md:block h-full
+                `}
+            >
+                <div className="h-full w-64">
+                     <ScrollArea className="h-full">
                          <WizardHistory 
                             onNewWizard={handleNewWizard}
                             onSelectChat={handleSelectChat}
                             selectedChatId={selectedChatId}
+                            refreshTrigger={refreshTrigger}
                          />
-                    </div>
-                </aside>
-            )}
+                     </ScrollArea>
+                </div>
+            </aside>
 
             {/* Main Content Area */}
             <section className="flex-1 flex flex-col h-full relative bg-background">
@@ -187,13 +230,65 @@ export default function Home() {
                 </header>
 
                 {/* Wizard / Workspace */}
-                <div className="flex-1 overflow-auto bg-muted/5 p-4">
-                    <WizardContainer 
-                        loadedChatId={loadedChatId}
-                        loadedChatTitle={loadedChatTitle}
-                        loadedExecutionId={loadedExecutionId}
-                    />
-                </div>
+                {mode === 'selection' ? (
+                    <div className="flex-1 overflow-auto bg-muted/5">
+                        <ModeSelection onSelectMode={handleModeSelect} />
+                    </div>
+                ) : mode === 'step-by-step' ? (
+                    <div className="flex-1 overflow-hidden relative flex flex-col items-center justify-center">
+                        {!loadedChatId ? (
+                             <div className="flex flex-col items-center gap-4 p-8 text-center animate-in fade-in duration-500">
+                                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                                <div className="space-y-2">
+                                    <h3 className="text-lg font-semibold">Initializing Assistant</h3>
+                                    <p className="text-sm text-muted-foreground max-w-xs">
+                                        Preparing your dedicated chat environment for custom model generation.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Back button - removed if already chatted */}
+                                {!hasChatted && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="absolute top-4 left-4 z-50 gap-2 bg-background/50 backdrop-blur-sm border hover:bg-background"
+                                        onClick={handleBackToSelection}
+                                    >
+                                        <ArrowLeft className="h-4 w-4" />
+                                        Back to Selection
+                                    </Button>
+                                )}
+                                <ChatInterface 
+                                    chatId={loadedChatId} 
+                                    onMessage={handleMessageSaved} 
+                                    initialMessages={loadedMessages}
+                                />
+                            </>
+                        )}
+                    </div>
+                ) : (
+                    <div className="flex-1 overflow-auto bg-muted/5 p-4">
+                        {/* Back button */}
+                        <div className="mb-4">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gap-2"
+                                onClick={handleBackToSelection}
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                                Back to Selection
+                            </Button>
+                        </div>
+                        <WizardContainer 
+                            loadedChatId={loadedChatId}
+                            loadedChatTitle={loadedChatTitle}
+                            loadedExecutionId={loadedExecutionId}
+                        />
+                    </div>
+                )}
             </section>
 
             {/* Loading Modal */}

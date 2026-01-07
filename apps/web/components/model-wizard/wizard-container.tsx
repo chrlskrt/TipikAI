@@ -190,6 +190,9 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
     setModelFormat("pickle");
   };
 
+
+
+
   const handleDownload = async (url: string, filename: string) => {
     try {
       // Fetch the file and create a blob
@@ -269,7 +272,7 @@ export function WizardContainer({ loadedChatId, loadedChatTitle, loadedExecution
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : !executionStatus ? (
-              /* Initial Form */
+              /* Initial Form (One Prompt Mode) */
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="modelPrompt">Model Prompt</Label>
