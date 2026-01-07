@@ -63,21 +63,22 @@ export function WizardHistory({ className, onNewWizard, onSelectChat, selectedCh
 
     return (
         <div className={cn("flex flex-col h-full bg-muted/10", className)}>
-            <div className="p-4 flex items-center justify-between border-b bg-background h-14">
-                <h2 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
+            <div className="px-4 flex items-center justify-between border-b bg-background h-14 flex-shrink-0 sticky top-0 z-10">
+                <h2 className="font-semibold text-[10px] uppercase tracking-widest text-muted-foreground/70">
                     Model Wizards
                 </h2>
                 <Button 
                     size="icon" 
                     variant="ghost" 
                     onClick={onNewWizard} 
-                    className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
+                    className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-all duration-200"
+                    title="New Wizard"
                 >
                     <Plus className="h-4 w-4" />
                 </Button>
             </div>
             <ScrollArea className="flex-1">
-                <div className="p-3 space-y-2">
+                <div className="p-3 space-y-2 w-64">
                     {loading ? (
                         <div className="text-center text-sm text-muted-foreground py-8">
                             Loading...

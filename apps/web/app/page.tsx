@@ -6,7 +6,8 @@ import { WizardHistory } from "@/components/model-wizard/wizard-history";
 import { WizardContainer } from "@/components/model-wizard/wizard-container";
 import { ModeSelection } from "@/components/model-wizard/mode-selection";
 import { ChatInterface } from "@/components/model-wizard/chat-interface";
-import { Moon, Sun, LogIn, Loader2, ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Moon, Sun, LogIn, Loader2, ArrowLeft, PanelLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import {
@@ -180,14 +181,12 @@ export default function Home() {
                 `}
             >
                 <div className="h-full w-64">
-                     <ScrollArea className="h-full">
-                         <WizardHistory 
-                            onNewWizard={handleNewWizard}
-                            onSelectChat={handleSelectChat}
-                            selectedChatId={selectedChatId}
-                            refreshTrigger={refreshTrigger}
-                         />
-                     </ScrollArea>
+                     <WizardHistory 
+                        onNewWizard={handleNewWizard}
+                        onSelectChat={handleSelectChat}
+                        selectedChatId={selectedChatId}
+                        refreshTrigger={refreshTrigger}
+                     />
                 </div>
             </aside>
 
@@ -195,8 +194,17 @@ export default function Home() {
             <section className="flex-1 flex flex-col h-full relative bg-background">
                  {/* Header */}
                 <header className="h-14 px-4 flex items-center justify-between border-b bg-background sticky top-0 z-20">
-                    <div className="flex items-center gap-4">
-                         <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSidebarOpen(!sidebarOpen)}
+                            className="h-8 w-8 hidden md:flex"
+                            title={sidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
+                        >
+                            <PanelLeft className={cn("h-4 w-4 transition-transform", !sidebarOpen && "rotate-180")} />
+                        </Button>
+                        <div className="flex items-center gap-2">
                              <div className="w-6 h-6 bg-primary rounded flex items-center justify-center text-primary-foreground font-bold text-xs">
                                 T
                             </div>
@@ -205,6 +213,15 @@ export default function Home() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={handleNewWizard}
+                            className="h-8 w-8 text-primary hover:bg-primary/10"
+                            title="New Wizard"
+                        >
+                            <Plus className="h-4 w-4" />
+                        </Button>
                         <Button 
                             variant="ghost" 
                             size="icon" 
