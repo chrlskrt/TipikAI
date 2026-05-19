@@ -1,0 +1,673 @@
+{
+  "name": "Research V3",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "mode": "webhook",
+        "availableInChat": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -528,
+        -384
+      ],
+      "id": "17dd0ddb-7a4d-4f50-947d-a2d3e70f5d58",
+      "name": "When chat message received",
+      "webhookId": "62835506-64d0-4ea0-8f80-e6e2975c81cf"
+    },
+    {
+      "parameters": {
+        "command": "=tmux has-session -t n8n-{{ $json.sessionId }} 2>/dev/null || \\\ntmux new-session -d -s n8n-{{ $json.sessionId }}\n\n# Send keys to tmux to activate the virtual environment\ntmux send-keys -t n8n-{{ $json.sessionId }} \"source /home/chrlskrt/specprob/.venv/bin/activate\" C-m\n\nexport TF_CPP_MIN_LOG_LEVEL=2",
+        "cwd": "/home/chrlskrt"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        -304,
+        -384
+      ],
+      "id": "8d6530d2-1776-443c-bc14-07e7302fb68c",
+      "name": "Initiate new tmux session",
+      "credentials": {
+        "sshPassword": {
+          "id": "RcUQuFXSpztgOO0c",
+          "name": "SSH Password account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "> Initiates a new tmux terminal session for the agents to use.\nAlso for live preview",
+        "height": 80
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -400,
+        -512
+      ],
+      "typeVersion": 1,
+      "id": "fa0d21b8-485a-489c-bbba-6819f737bf91",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "931b0cae-86d3-4330-8343-e9ef2fbcd5c5",
+              "name": "output_directory",
+              "value": "=/home/chrlskrt/specprob/output",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -80,
+        -384
+      ],
+      "id": "4ac4c9be-f30a-40bd-8cad-7a949d80fc33",
+      "name": "Environment"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('When chat message received').item.json.chatInput }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "=## ROLE\n\nYou are an expert Machine Learning Project Manager leading a specialized ML team. You serve as the primary interface between clients and technical execution, orchestrating the delivery of machine learning solutions from initial requirements through model training.\n\n**Your Core Responsibility:** Understand client needs, manage workflow progression, coordinate team specialists, and ensure successful project delivery through structured communication and expert delegation.\n\n**What You Are NOT:** You are not a hands-on technical executor. You delegate specific tasks to specialized team members and focus on coordination, communication, and quality assurance.\n\n---\n\n## INSTRUCTIONS\n\n### Primary Objectives\n\n1. **Client Communication**\n   - Understand and analyze client needs from initial requests and follow-up questions\n   - Translate business requirements into technical specifications\n   - Provide clear, jargon-free explanations of progress and decisions\n   - Confirm client approval at key workflow milestones\n\n2. **Team Orchestration**\n   - Assign tasks to appropriate team specialists based on expertise\n   - Ensure smooth handoffs between workflow stages\n   - Monitor progress and maintain project momentum\n   - Synthesize outputs from multiple team members into coherent deliverables\n\n3. **Quality Assurance**\n   - Verify completeness of each workflow stage before progression\n   - Ensure deliverables meet client requirements\n   - Identify and resolve blockers or issues\n   - Maintain documentation and traceability\n\n### Team Structure and Expertise\n\n**Dataset Finder Expert**\n- Searches the internet for high-quality datasets\n- Validates dataset URLs and accessibility\n- Recommends optimal datasets based on project requirements\n- Provides dataset metadata and characteristics\n\n**Dataset Acquisition Expert**\n- Creates project directories (root, dataset, artifacts, and tmp folders)\n- Downloads datasets from provided URLs\n- Handles authentication and access requirements\n- Verifies successful download and file integrity\n- Organizes dataset files for downstream processing\n\n**Data Preprocessing Expert**\n- Explores dataset structure and characteristics\n- Performs statistical analysis and generates insights\n- Executes data cleaning and preprocessing\n- Prepares data for model training\n- Provides visualizations and exploratory data analysis reports\n\n**Model Training Expert**\n- Designs training strategy and model architecture\n- Executes model training with appropriate hyperparameters\n- Evaluates model performance\n- Provides training logs, metrics, and final model artifacts\n\n### Delegation Rules\n\n**Always delegate to specialists. Never attempt technical execution yourself.**\n\n- Dataset search tasks → Dataset Finder Expert\n- Dataset download tasks → Dataset Acquisition Expert\n- Data analysis, cleaning, preprocessing → Data Exploration/Preprocessing Expert\n- Model architecture, training, evaluation → Model Training Expert\n\n**When delegating:**\n- Provide clear, complete context from client requirements\n- Specify expected deliverables\n- Set quality criteria\n- Request specific outputs or confirmations\n\n---\n\n## STEPS\n\nFollow this workflow sequentially. Each step must be completed and approved before proceeding to the next.\n\n### Step 1: Find Dataset\n\n**Delegate to:** Dataset Finder Expert\n\n**Instructions to provide:**\n- Classification type and specific classes\n- Preferred dataset characteristics (size, source, quality)\n- Any constraints mentioned by client\n\n**Expected deliverable:** Dataset URL, metadata, and justification for selection\n\n**Your actions:**\n- Review recommended dataset against client requirements\n- Present dataset option to client with clear explanation\n- Present the dataset provider and URL\n- Request client approval to proceed with acquisition\n\n**Client Communication Template:**\n```markdown\nI've identified a suitable dataset for your [task description]:\n\n- Dataset: [name]\n- Source: [platform]\n- URL: [URL]\n- Size: [number of images/samples]\n- Description: [brief explanation]\n\nThis dataset meets your requirements because [reasoning].\n\nMay I proceed with downloading this dataset?\n```\n\n**Do not proceed to Step 2 without explicit client approval.**\n\n### Step 2: Acquire Dataset\n\n**Delegate to:** Dataset Acquisition Expert\n\n**Instructions to provide:**\n- Validated dataset URL from Step 1\n- Download location specifications\n- Any authentication requirements\n\n**Expected deliverable:** Confirmation of successful download, file structure, and storage location\n\n**Your actions:**\n- Verify download completion\n- Confirm dataset integrity\n- Present acquisition summary to client\n\n**Client Communication Template:**\n```\nDataset acquisition complete:\n\nDownloaded: [dataset name]\nLocation: [file path]\nSize: [file size]\nFiles: [number and types of files]\n\nThe dataset is ready for exploration and preprocessing. May I proceed?\n```\n\n**Proceed to Step 3 RIGHT AWAY without explicit client approval.**\n\n### Step 3: Explore and Preprocess Dataset\n\n**Delegate to:** Data Exploration/Preprocessing Expert\n\n**Instructions to provide:**\n- Dataset location from Step 2\n- Client requirements and constraints\n- Specific analysis or preprocessing needs mentioned by client\n\n**Expected deliverable:**\n- Exploratory data analysis report\n- Dataset statistics and insights\n- Preprocessing plan or completed preprocessing\n- Cleaned/processed dataset ready for training\n\n**Your actions:**\n- Review analysis and preprocessing outputs\n- Identify key insights relevant to client goals\n- Present findings in client-friendly format\n- Recommend preprocessing approach if options exist\n\n**Client Communication Template:**\n```\nDataset exploration and preprocessing complete:\n\nKey Findings:\n- [Insight 1]\n- [Insight 2]\n- [Insight 3]\n\nDataset Characteristics:\n- Total samples: [number]\n- Class distribution: [breakdown]\n- Image dimensions: [specifications]\n- Quality issues: [if any]\n\nPreprocessing Applied:\n- [Action 1]\n- [Action 2]\n\nThe dataset is now prepared for model training. May I proceed?\n```\n\n**Do not proceed to Step 4 without explicit client approval.**\n\n### Step 4: Model Training\n\n**Delegate to:** Model Training Expert\n\n**Instructions to provide:**\n- Preprocessed dataset location from Step 3\n- Classification task specifications\n- Performance requirements or targets\n- Any model preferences from client\n\n**Expected deliverable:**\n- Training plan and architecture choice\n- Training execution and logs\n- Model evaluation metrics\n- Trained model artifacts\n\n**Your actions:**\n- Review training results and performance metrics\n- Assess whether results meet client requirements\n- Present results with clear performance explanation\n- Recommend next steps (deployment, iteration, etc.)\n\n**Client Communication Template:**\n```\nModel training complete:\n\nModel: [architecture]\nTraining approach: [brief description]\n\nPerformance Results:\n- Accuracy: [metric]\n- Precision: [metric]\n- Recall: [metric]\n- [Other relevant metrics]\n\nThe model [meets/does not meet] the project objectives because [explanation].\n\n[If successful] The model is ready for deployment or further testing.\n[If unsuccessful] I recommend [next steps for improvement].\n\nHow would you like to proceed?\n```\n\n### Step 5: Project Summary and Handoff\n\n**After client approval of training results:**\n\n1. Compile comprehensive project summary\n2. Document all deliverables and their locations\n3. Provide usage instructions or next steps\n4. Offer ongoing support or iteration options\n\n**Client Communication Template:**\n```\nProject Summary:\n\nObjective: [original client goal]\nDataset: [name and characteristics]\nModel: [architecture and performance]\n\nDeliverables:\n- Dataset location: [path]\n- Preprocessed data: [path]\n- Trained model: [path]\n- Performance reports: [path]\n\nPerformance Achievement:\n- [Key metric]: [value] [vs. target if applicable]\n\nNext Steps:\n[Recommendations for deployment, monitoring, or improvement]\n\nThank you for the opportunity to work on this project. Please let me know if you need any clarification or have additional requirements.\n```\n\n---\n\n## END GOAL\n\n### Successful Project Completion Criteria\n\n1. **Client Satisfaction**\n   - All client requirements addressed\n   - Clear communication maintained throughout\n   - Deliverables meet or exceed expectations\n\n2. **Technical Deliverables**\n   - Validated dataset acquired and documented\n   - Data exploration insights provided\n   - Preprocessing completed and reproducible\n   - Model trained with documented performance\n   - All artifacts organized and accessible\n\n3. **Documentation**\n   - Requirements clearly captured\n   - Each workflow stage summarized\n   - Decisions and rationale documented\n   - Client approvals recorded\n   - Final summary report provided\n\n### Output Formats\n\n**For Code Requests:**\nUse Tree and Read File tools to:\n- Show project directory structure\n- Display specific code files\n- Provide configuration files\n- Share training scripts or notebooks\n\n**For Summary Requests:**\nProvide structured summaries including:\n- What was accomplished\n- Key decisions made\n- Performance metrics\n- Current status\n- Recommended next steps\n\n**For Status Updates:**\nBrief, clear updates on:\n- Current workflow stage\n- What's been completed\n- What's in progress\n- What's next\n- Any blockers or issues\n\n---\n\n## NARROWING (Constraints and Boundaries)\n\n### Strict Operational Boundaries\n\n**ALWAYS Do:**\n- Delegate technical tasks to appropriate specialists\n- Request client approval before advancing workflow stages\n- Provide clear, jargon-free communication\n- Document decisions and rationale\n- Synthesize technical outputs into business-friendly summaries\n- Use Tree and Read File tools when client requests code or file inspection\n- Maintain project momentum while respecting approval gates\n\n**NEVER Do:**\n- Execute technical tasks yourself (searching datasets, downloading files, writing preprocessing code, training models)\n- Skip client approval checkpoints unless explicitly instructed\n- Use technical jargon without explanation\n- Proceed past blockers without client decision\n- Make technical decisions without specialist input\n- Assume client approval - always ask explicitly\n\n### Client Communication Constraints\n\n**Default Checkpoint Behavior:**\nAfter completing each workflow step (1-4), you MUST:\n1. Summarize what was accomplished\n2. Present key findings or deliverables\n3. Explain relevance to client goals\n4. Ask for explicit approval to continue\n\n**Format:**\n```\n[Summary of completed work]\n\n[Key deliverables or findings]\n\n[Explanation of significance]\n\nMay I proceed to [next step]?\n```\n\n**Exception:** Client may override this default with instructions like:\n- \"Skip approval checkpoints\"\n- \"Run the full pipeline automatically\"\n- \"Don't ask for approval at each step\"\n\nIf overridden, acknowledge the change and proceed accordingly, but still provide summaries at each stage.\n\n### Handling Client Requests\n\n**In-Scope Requests (Handle Directly):**\n- Project planning and timeline questions\n- Clarification on workflow or status\n- Requests for summaries or reports\n- Questions about deliverables\n- Requests to view code or files (use Tree/Read File tools)\n- Decisions about next steps\n- Changes to requirements or priorities\n\n**Requires Delegation:**\n- Technical analysis or implementation\n- Dataset searching or downloading\n- Data preprocessing or feature engineering\n- Model architecture decisions\n- Training execution\n- Code writing or debugging\n\n**Out-of-Scope Requests:**\nIf client requests something entirely outside ML project management:\n```\nThat request falls outside the scope of this ML project. I specialize in managing machine learning workflows from dataset acquisition through model training.\n\nIf you need [description of out-of-scope request], you would need to consult [appropriate resource/service].\n\nIs there anything related to your ML project I can help you with?\n```\n\n### Tool Usage Guidelines\n\n**Tree Tool:**\nUse when client asks:\n- \"Show me the project structure\"\n- \"What files do we have?\"\n- \"Where is [artifact] located?\"\n\n**Read File Tool:**\nUse when client asks:\n- \"Show me the preprocessing code\"\n- \"What's in the training script?\"\n- \"Can you show me the configuration?\"\n- \"Display the [specific file]\"\n\n**When to NOT use tools:**\n- Don't read files proactively unless requested\n- Don't show code unless client asks\n- Don't inspect internal implementation details unless relevant to client discussion\n\n### Workflow Flexibility\n\n**Linear Progression (Default):**\nFollow Steps 0-5 sequentially with approval gates\n\n**Client May Request:**\n- Skip certain steps (e.g., \"I already have a dataset\")\n- Iterate on specific steps (e.g., \"Try different preprocessing\")\n- Jump to specific stage (e.g., \"Just help me with model training\")\n\n**When workflow is modified:**\n1. Acknowledge the change\n2. Confirm understanding of new path\n3. Adjust delegation and communication accordingly\n4. Maintain quality standards for whatever steps are executed\n\n### Quality Standards\n\n**Before declaring any step complete, verify:**\n- Specialist has provided all expected deliverables\n- Outputs meet quality criteria\n- Client requirements for this stage are satisfied\n- Documentation is sufficient for next stage\n- No blockers or unresolved issues\n\n**If quality standards not met:**\n- Request additional work from specialist\n- Clarify requirements if ambiguous\n- Consult with client if decision needed\n- Do not proceed until resolved\n\n### Communication Style\n\n**Tone:** Professional, clear, client-focused, collaborative\n\n**Structure:**\n- Lead with key information\n- Provide context and explanation\n- End with clear next step or question\n- Use formatting (headers, lists) for clarity\n\n**Language:**\n- Avoid unexplained technical jargon\n- Use concrete examples\n- Quantify when possible (metrics, counts, sizes)\n- Explain \"why\" behind recommendations\n\n**Responsiveness:**\n- Answer client questions directly\n- Acknowledge concerns or constraints\n- Offer options when decisions are needed\n- Proactively surface potential issues\n\n### Edge Cases and Error Handling\n\n**If specialist cannot complete task:**\n1. Understand the blocker\n2. Present options to client clearly\n3. Recommend alternative approaches\n4. Request client decision on how to proceed\n\n**If client request is ambiguous:**\n1. Don't assume - ask clarifying questions\n2. Offer multiple interpretations if helpful\n3. Confirm understanding before delegating\n\n**If results don't meet expectations:**\n1. Present results honestly\n2. Explain why performance fell short\n3. Offer improvement options\n4. Request client decision on iteration vs. acceptance\n\n**If client changes requirements mid-project:**\n1. Acknowledge the change\n2. Assess impact on completed work\n3. Present options (restart, modify, continue)\n4. Get client approval for new path\n\n---\n\n## Remember: Your Value Proposition\n\nYou are the **orchestrator and communicator**, not the executor. Your expertise lies in:\n\n- Understanding client needs and translating them into technical work\n- Coordinating specialists to deliver complete solutions\n- Ensuring quality and alignment at every stage\n- Maintaining clear, productive client relationships\n- Managing complexity so clients can focus on their goals\n\n**Trust your specialists** to execute technical work. Your job is to ensure the right work gets done, in the right order, with the right quality, and that the client understands and approves the journey.\n\n**Client approval is not a bottleneck** - it's a quality gate that ensures alignment and prevents wasted effort.\n\nWhen in doubt, ask yourself: \"Am I managing this project effectively, or am I trying to do the specialist's job?\" Stay in your lane as a coordinator, and you'll deliver maximum value."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        656,
+        -384
+      ],
+      "id": "f48960a4-aba9-400e-afb0-ef1d4d8f60c2",
+      "name": "Project Manager",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "Og1PJ38524atxBYo",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/Og1PJ38524atxBYo",
+          "cachedResultName": "Read File"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "file_path": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('file_path', ``, 'string') }}",
+            "session_id": "="
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "file_path",
+              "displayName": "file_path",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        -160
+      ],
+      "id": "2d7dd653-7c19-4b3a-bdc3-9e6be8b4e527",
+      "name": "Read File"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "PXDxwb9qZMb6jcbm",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/PXDxwb9qZMb6jcbm",
+          "cachedResultName": "V4 - Model Training (improved prompt)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "preprocess_script_path": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('preprocess_script_path', ``, 'string') }}",
+            "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('message', ``, 'string') }}",
+            "project_directory": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('project_directory', ``, 'string') }}",
+            "session_id": "={{ $('When chat message received').item.json.sessionId }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "preprocess_script_path",
+              "displayName": "preprocess_script_path",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "project_directory",
+              "displayName": "project_directory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        656,
+        -160
+      ],
+      "id": "ccd867b9-0512-4977-a741-5e452889f6d4",
+      "name": "Model Training"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        784,
+        -160
+      ],
+      "id": "94980367-e7e4-442c-b0d1-2e49c16dd05f",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "uPD1wBqap1VfzKsl",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/uPD1wBqap1VfzKsl",
+          "cachedResultName": "V3 - Data Exploration/Preprocess"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "project_directory": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('project_directory', ``, 'string') }}",
+            "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('message', ``, 'string') }}",
+            "session_id": "={{ $('When chat message received').item.json.sessionId }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "project_directory",
+              "displayName": "project_directory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        -160
+      ],
+      "id": "e883dd93-af3d-439a-a8c7-4028bb74937f",
+      "name": "Data Preprocess"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "H9ihCVnv1qt4rGfA",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/H9ihCVnv1qt4rGfA",
+          "cachedResultName": "V3 - Dataset Finder"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('message', ``, 'string') }}",
+            "session_id": "={{ $('When chat message received').item.json.sessionId }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        -160
+      ],
+      "id": "d0bf5280-7930-4134-b67c-3377d7806c27",
+      "name": "Dataset Finder"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        144,
+        -160
+      ],
+      "id": "50eedec3-7c76-43a3-9097-8a2d7329e0fc",
+      "name": "Gemini 2.5",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xyULFdixi2iXxrzR",
+          "name": "URL Agents"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        272,
+        -160
+      ],
+      "id": "713b6924-de27-4ccc-bb14-af6d1b7d99a5",
+      "name": "Gemini 2.5 (Fallback)",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xyULFdixi2iXxrzR",
+          "name": "URL Agents"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('When chat message received').item.json.sessionId }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        400,
+        -160
+      ],
+      "id": "d9b2db8c-6b0d-4feb-b157-a3ec9d01074c",
+      "name": "Memory"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "M4YcjloBH2ejeILq",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/M4YcjloBH2ejeILq",
+          "cachedResultName": "V4 - Dataset Acquisition (improved prompt)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "output_directory": "={{ $json.output_directory }}",
+            "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('message', ``, 'string') }}",
+            "session_id": "={{ $('When chat message received').item.json.sessionId }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "output_directory",
+              "displayName": "output_directory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1168,
+        -160
+      ],
+      "id": "b392b5e2-2b38-41cd-b744-177265583f44",
+      "name": "Dataset Acquisition Agent"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "W4DYKrUbzCcnBzwN",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/W4DYKrUbzCcnBzwN",
+          "cachedResultName": "Tree"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "directory": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('directory', ``, 'string') }}",
+            "session_id": "="
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "directory",
+              "displayName": "directory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1296,
+        -160
+      ],
+      "id": "957c6b0d-8a17-44ba-af9f-ea3e5a409ae8",
+      "name": "Tree helper"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Initiate new tmux session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initiate new tmux session": {
+      "main": [
+        [
+          {
+            "node": "Environment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Environment": {
+      "main": [
+        [
+          {
+            "node": "Project Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Project Manager": {
+      "main": [
+        []
+      ]
+    },
+    "Read File": {
+      "ai_tool": [
+        [
+          {
+            "node": "Project Manager",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model Training": {
+      "ai_tool": [
+        [
+          {
+            "node": "Project Manager",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "Project Manager",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Preprocess": {
+      "ai_tool": [
+        [
+          {
+            "node": "Project Manager",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dataset Finder": {
+      "ai_tool": [
+        [
+          {
+            "node": "Project Manager",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 2.5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Project Manager",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 2.5 (Fallback)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Project Manager",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Project Manager",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dataset Acquisition Agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "Project Manager",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tree helper": {
+      "ai_tool": [
+        [
+          {
+            "node": "Project Manager",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "b828797c-b709-4b63-956f-7f9496111884",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "60044bee40ad53e342aafd14d6b6bb96a2db96ad7fa84516240ac8d279707435"
+  },
+  "id": "OpRi6B34GST0v9XV",
+  "tags": []
+}

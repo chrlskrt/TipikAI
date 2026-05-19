@@ -1,0 +1,73 @@
+{
+  "name": "Create Directory",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "directory"
+            },
+            {
+              "name": "session_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -224,
+        0
+      ],
+      "id": "3bf3932b-11f4-4719-a8cd-1ac5a2914e7b",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "command": "=\ntmux has-session -t n8n-{{ $json.session_id }} 2>/dev/null || tmux new-session -d -s n8n-{{ $json.session_id }}\n\n\ntmux send-keys -t n8n-{{ $json.session_id }}:0 \"mkdir -p {{ $json.directory }}\" C-m",
+        "cwd": "/home/chrlskrt"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        80,
+        0
+      ],
+      "id": "ba055606-e53f-4612-a620-3edecaea2d79",
+      "name": "Execute a command",
+      "credentials": {
+        "sshPassword": {
+          "id": "RcUQuFXSpztgOO0c",
+          "name": "SSH Password account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Execute a command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "eb7b27d3-9ea0-4b9f-a733-f452e4de3b07",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "60044bee40ad53e342aafd14d6b6bb96a2db96ad7fa84516240ac8d279707435"
+  },
+  "id": "K9veOgg8UXGE8gL4",
+  "tags": []
+}

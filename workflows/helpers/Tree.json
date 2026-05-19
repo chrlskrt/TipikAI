@@ -1,0 +1,73 @@
+{
+  "name": "Tree",
+  "nodes": [
+    {
+      "parameters": {
+        "command": "=# 1. Ensure session exists\ntmux has-session -t n8n-{{ $json.session_id }} 2>/dev/null || tmux new-session -d -s n8n-{{ $json.session_id }}\n\n# 2. Generate unique start and end markers\nSTART_MARKER=\"CMD_START_$$_$(date +%s)\"\nEND_MARKER=\"CMD_END_$$_$(date +%s)\"\n\n# 3. Send the command wrapped with markers\ntmux send-keys -t n8n-{{ $json.session_id }}:0 \"echo $START_MARKER; tree {{ $json.directory }} --filelimit 20; echo $END_MARKER\" C-m\n\n# 4. Wait for the end marker to appear\nwhile true; do\n    sleep 0.5\n    tmux capture-pane -pt n8n-{{ $json.session_id }}:0 > /tmp/tmux_output_$$\n    if grep -q \"$END_MARKER\" /tmp/tmux_output_$$; then\n        break\n    fi\ndone\n\n# 5. Extract only the output between the markers\nsed -n \"/$START_MARKER/,/$END_MARKER/{\n    /$START_MARKER/d\n    /$END_MARKER/d\n    p\n}\" /tmp/tmux_output_$$\n\n# 6. Clean up\nrm /tmp/tmux_output_$$",
+        "cwd": "/home/chrlskrt"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "670b3923-2b09-4dbd-b4e8-867049c57815",
+      "name": "Execute a command",
+      "credentials": {
+        "sshPassword": {
+          "id": "RcUQuFXSpztgOO0c",
+          "name": "SSH Password account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "directory"
+            },
+            {
+              "name": "session_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "bbd7d970-5d95-4e8b-908b-5212bbab6b4c",
+      "name": "When Executed by Another Workflow"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Execute a command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "aa5dc847-a832-40b8-8136-3db211e86f93",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "60044bee40ad53e342aafd14d6b6bb96a2db96ad7fa84516240ac8d279707435"
+  },
+  "id": "W4DYKrUbzCcnBzwN",
+  "tags": []
+}

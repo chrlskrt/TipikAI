@@ -1,0 +1,72 @@
+{
+  "name": "URL Check",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "url"
+            },
+            {
+              "name": "session_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -336,
+        -48
+      ],
+      "id": "3ca9d3a0-1556-4275-9f45-99791e16ff7e",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "command": "=# 1. Ensure tmux session exists\ntmux has-session -t n8n-{{ $json.session_id }} 2>/dev/null || \\\ntmux new-session -d -s n8n-{{ $json.session_id }}\n\n# 2. Marker & output files\nTIMESTAMP=$(date +%s)\nMARKER_FILE=\"/tmp/n8n-{{ $json.session_id }}-${TIMESTAMP}.done\"\nOUTPUT_FILE=\"/tmp/n8n-{{ $json.session_id }}-${TIMESTAMP}.out\"\nSCRIPT_FILE=\"/tmp/n8n-{{ $json.session_id }}-${TIMESTAMP}.sh\"\nrm -f \"$MARKER_FILE\" \"$OUTPUT_FILE\" \"$SCRIPT_FILE\"\n\n# 3. Write the command to a script file\ncat > \"$SCRIPT_FILE\" << 'EOFSCRIPT'\n#!/bin/bash\nMARKER_FILE=\"MARKER_PLACEHOLDER\"\nOUTPUT_FILE=\"OUTPUT_PLACEHOLDER\"\nURL=\"URL_PLACEHOLDER\"\n\necho \"Validating $URL\"\n\n(http_status=$(curl -o /dev/null -s -w '%{http_code}' \"$URL\"); \\\nif [ \"$http_status\" -ne 200 ]; then \\\n  echo \"HTTP check failed with status $http_status\" >&2; \\\nfi; \\\necho \"HTTP check succeeded\"; \\\ntouch \"$MARKER_FILE\") 2>&1 | tee \"$OUTPUT_FILE\"\nEOFSCRIPT\n\n# 4. Replace placeholders\nsed -i \"s|MARKER_PLACEHOLDER|$MARKER_FILE|g\" \"$SCRIPT_FILE\"\nsed -i \"s|OUTPUT_PLACEHOLDER|$OUTPUT_FILE|g\" \"$SCRIPT_FILE\"\nsed -i \"s|URL_PLACEHOLDER|{{ $json.url }}|g\" \"$SCRIPT_FILE\"\n\nchmod +x \"$SCRIPT_FILE\"\n\n# 5. Execute the script in tmux\ntmux send-keys -t n8n-{{ $json.session_id }}:0 \"$SCRIPT_FILE\" C-m\n\n# 6. Wait for marker file\nwhile [ ! -f \"$MARKER_FILE\" ]; do\n    sleep 0.5\ndone\n\n# 7. Output cleaned version\nsed 's/\\x1b\\[[0-9;]*m//g' \"$OUTPUT_FILE\" | \\\nsed 's/\\r/\\n/g' | \\\ngrep -v '━' | \\\ngrep -v '^[[:space:]]*$' | \\\nuniq\n\n# 8. Clean up\nrm -f \"$MARKER_FILE\" \"$OUTPUT_FILE\" \"$SCRIPT_FILE\"",
+        "cwd": "/home/chrlskrt"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        -48
+      ],
+      "id": "a755f6a4-82b0-4a7f-869d-a06e3fa37e8e",
+      "name": "Execute a command",
+      "credentials": {
+        "sshPassword": {
+          "id": "RcUQuFXSpztgOO0c",
+          "name": "SSH Password account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Execute a command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "404205cf-6f30-4143-bc0a-c0269defcbc1",
+  "meta": {
+    "instanceId": "60044bee40ad53e342aafd14d6b6bb96a2db96ad7fa84516240ac8d279707435"
+  },
+  "id": "RxPVjRIdVloqlYJG",
+  "tags": []
+}

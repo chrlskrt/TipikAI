@@ -1,0 +1,432 @@
+{
+  "name": "Python Code Validator",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "python_code"
+            }
+          ]
+        }
+      },
+      "id": "c9ea1876-2c02-4d3c-aeb0-9f49f299bddb",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -1376,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -928,
+        544
+      ],
+      "id": "495f1575-b886-480f-a9f8-ba4f2bf74a1a",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "66004a6b-4ee8-4eb6-ac88-7c2186b61a78",
+              "name": "output_directory",
+              "value": "/home/chrlskrt/specprob/output",
+              "type": "string"
+            },
+            {
+              "id": "14add1f7-de4c-4f45-aca6-3fadd985560e",
+              "name": "python_code",
+              "value": "={{ $json.python_code }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1152,
+        544
+      ],
+      "id": "69d69b82-cd70-4eca-8b0d-82466be1c944",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        224
+      ],
+      "id": "7c02074f-f5f9-49bc-9932-a5afa3908b1f",
+      "name": "Google Gemini Chat Model",
+      "retryOnFail": true,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "60Bc0rgywyLkXl1l",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Edit Fields1').item.json.python_code }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        224
+      ],
+      "id": "3e3aa4bc-8369-41db-8702-84f7eda25192",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# ROLE\nYou are a Senior Python Developer and Automated Debugging Specialist. You operate in a Test-Driven Development (TDD) environment. Your goal is to repair Python scripts that have failed validation (Syntax, Runtime, or Logical errors).\n\nHere is the Python script you must fix: {{ $json.candidates[0].content.parts[0].executableCode.code }}\n\n# TASK\nAnalyze the provided failing code, infer its original purpose, and return a 100% functional, corrected version.\n\n# STEP 1: INTENT INFERENCE (CRITICAL)\nBefore repairing, you must identify:\n- Purpose: (e.g., Downloading a Kaggle dataset, processing CSVs)\n- Environment: The script runs in /home/chrlskrt/specprob/\n- Dependencies: kagglehub, pandas, os, etc.\n- Pathing: All paths must be absolute and quoted.\n\n# STEP 2: REPAIR STRATEGY\n1. PASS SYNTAX: Fix all indentation, quotes, and missing imports.\n2. PASS RUNTIME: Fix variable name mismatches and uninitialized objects.\n3. LOGIC RECOVERY: If a function is empty or contains only 'pass', you MUST reconstruct the logic based on the script's filename and the User's Objective.\n4. SAFETY: Ensure `os.makedirs(..., exist_ok=True)` is used for all directories.\n\n# STEP 3: OUTPUT CONTRACT (STRICT)\n- Respond ONLY with a valid JSON object.\n- NO markdown code blocks (No ```json).\n- NO prose, explanations, apologies, or commentary.\n- Every newline in the code must be represented by \\n.\n\n# JSON SCHEMA\n{\n  \"python_code\": \"STRING (The full, functional, and fixed script)\",\n  \"status\": 1\n}\n\n# HARD CONSTRAINTS\n- NEVER return 'pass' as the only code.\n- If the code is missing or completely unfixable, rewrite it from scratch to fulfill the intent.\n- Use ONLY double quotes for string literals inside the Python code where possible.\n- Ensure all library imports required by the logic are included at the top.\n\n# FEW-SHOT EXAMPLE\nUser Error: \"NameError: name 'kagglehub' is not defined in acquire.py\"\nAssistant Output:\n{\n  \"python_code\": \"import kagglehub\\nimport os\\n\\ndef download():\\n    target = '/home/chrlskrt/specprob/output/dataset'\\n    os.makedirs(target, exist_ok=True)\\n    path = kagglehub.dataset_download('shaunthesheep/microsoft-catsvsdogs-dataset')\\n    print(f'Saved to {path}')\\n\\nif __name__ == '__main__':\\n    download()\",\n  \"status\": 1\n}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -16,
+        0
+      ],
+      "id": "d95262bd-99b5-4de0-950a-e24d253566ee",
+      "name": "Python Debugger Agent",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  python_code: $input.first().json.python_code || $input.first().json.output.python_code }"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        480
+      ],
+      "id": "f5a78201-3e87-40b2-804e-3f13f4fd3f8f",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Run this python code with its imports already downloaded: {{ $json.python_code }}\n"
+            }
+          ]
+        },
+        "simplify": false,
+        "builtInTools": {
+          "codeExecution": true
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -704,
+        256
+      ],
+      "id": "7989d059-6feb-4faf-abdf-c03e85fc471c",
+      "name": "Run Python",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "60Bc0rgywyLkXl1l",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"python_code\": \"print('hello')\\nprint('hi')\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        256,
+        224
+      ],
+      "id": "6cfa80ea-3574-4c6c-8313-886a67c07d61",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        128,
+        224
+      ],
+      "id": "ccd683f2-7872-4e35-886b-1858648cfeac",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e7b6b96b-7deb-4b0a-9050-fc696112bdde",
+              "name": "python_code",
+              "value": "={{ $json.candidates[0].content.parts[0].executableCode.code }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        64,
+        400
+      ],
+      "id": "ee614b94-951d-45e9-9c42-a3d669c10ce7",
+      "name": "False Statement"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b6b2ea13-e03f-4e60-9059-b1e0252be940",
+              "leftValue": "={{ $json.candidates[0].content.parts[1].text }}",
+              "rightValue": "FAILED",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "671a0cbc-8680-4db5-9ed1-0ee890c209bc",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -352,
+        256
+      ],
+      "id": "6da8bbf7-9021-4f9d-a604-b24fbbb721f0",
+      "name": "If"
+    }
+  ],
+  "pinData": {
+    "When Executed by Another Workflow": [
+      {
+        "json": {
+          "python_code": "import os, shutil\nimport kagglehub\n\nproject_root = r\"/home/chrlskrt/specprob/output/MicrosoftCatsvsDogsDataset\"\ndataset_dir = os.path.join(project_root, \"dataset\")\nos.makedirs(dataset_dir, exist_ok=True)\n\nslug = \"shaunthesheep/microsoft-catsvsdogs-dataset\"\n\ndef write_log(message):\n    log_path = os.path.join(project_root, \"artifacts\", \"acquire_dataset.log\")\n    os.makedirs(os.path.dirname(log_path), exist_ok=True)\n    with open(log_path, \"a\", encoding=\"utf-8\") as f:\n        f.write(message + \"\\n\")\n\nwrite_log(\"Starting dataset acquisition...\")\n\nif os.listdir(dataset_dir):\n    write_log(\"Dataset directory is not empty; skipping download.\")\nelse:\n    try:\n        download_path = kagglehub.dataset_download(slug)\n        write_log(\"Downloaded to: \" + str(download_path))\n\n        def copy_into(src, dst_dir):\n            if os.path.isdir(src):\n                for root, _, files in os.walk(src):\n                    for file_name in files:\n                        s = os.path.join(root, file_name)\n                        rel = os.path.relpath(s, src)\n                        d = os.path.join(dst_dir, rel)\n                        os.makedirs(os.path.dirname(d), exist_ok=True)\n                        if not os.path.exists(d):\n                            shutil.copy2(s, d)\n            else:\n                d = os.path.join(dst_dir, os.path.basename(src))\n                if not os.path.exists(d):\n                    shutil.copy2(src, d)\n\n        copy_into(download_path, dataset_dir)\n        write_log(\"Files now in dataset_dir: \" + \", \".join(os.listdir(dataset_dir)[:20]))\n    except Exception as e:\n        write_log(\"Error during download: \" + str(e))\n"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Python",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Python Debugger Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Python Debugger Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Python Debugger Agent": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Python": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Python Debugger Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "Python Debugger Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "False Statement": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Python Debugger Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "False Statement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "89152ecb-9359-4680-a08f-3cd5f7b2e4fe",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "60044bee40ad53e342aafd14d6b6bb96a2db96ad7fa84516240ac8d279707435"
+  },
+  "id": "FbrPjwKzMb1qy7iA",
+  "tags": [
+    {
+      "updatedAt": "2025-12-29T17:01:01.908Z",
+      "createdAt": "2025-12-29T17:01:01.908Z",
+      "id": "QcVm7ORElIexzYs7",
+      "name": "Angel"
+    },
+    {
+      "updatedAt": "2025-12-29T16:57:22.464Z",
+      "createdAt": "2025-12-29T16:57:22.464Z",
+      "id": "jlglXBvovc7CFeVV",
+      "name": "Sub-Workflow"
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "name": "Read File",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "file_path"
+            },
+            {
+              "name": "session_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7883de22-3c91-4b3a-ac30-507783b025fa",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "command": "=# 1. Ensure session exists\ntmux has-session -t n8n-{{ $json.session_id }} 2>/dev/null || tmux new-session -d -s n8n-{{ $json.session_id }}\n\n# 2. Generate unique start and end markers\nSTART_MARKER=\"CMD_START_$$_$(date +%s)\"\nEND_MARKER=\"CMD_END_$$_$(date +%s)\"\n\n# 3. Send the command wrapped with markers\ntmux send-keys -t n8n-{{ $json.session_id }}:0 \"echo $START_MARKER; cat {{ $json.file_path }}; echo $END_MARKER\" C-m\n\n# 4. Wait for the end marker to appear\nwhile true; do\n    sleep 0.5\n    tmux capture-pane -pt n8n-{{ $json.session_id }}:0 > /tmp/tmux_output_$$\n    if grep -q \"$END_MARKER\" /tmp/tmux_output_$$; then\n        break\n    fi\ndone\n\ncat {{ $json.file_path }}",
+        "cwd": "/home/chrlskrt"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        400,
+        0
+      ],
+      "id": "3252a320-94c7-40b0-9deb-6372e531fa0c",
+      "name": "Execute a command",
+      "credentials": {
+        "sshPassword": {
+          "id": "RcUQuFXSpztgOO0c",
+          "name": "SSH Password account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Execute a command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "558a4e10-72d6-4423-aa18-4d13bdfb93ff",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "60044bee40ad53e342aafd14d6b6bb96a2db96ad7fa84516240ac8d279707435"
+  },
+  "id": "Og1PJ38524atxBYo",
+  "tags": []
+}

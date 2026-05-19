@@ -1,0 +1,619 @@
+{
+  "name": "V4 - Dataset Acquisition (improved prompt)",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "output_directory"
+            },
+            {
+              "name": "message"
+            },
+            {
+              "name": "session_id"
+            }
+          ]
+        }
+      },
+      "id": "5d559f05-1387-457a-adc8-9c85ca0624b4",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        224,
+        224
+      ],
+      "id": "6f13361c-1d0a-4835-9e36-bbd07fc8d406",
+      "name": "Google Gemini Chat Model3",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "dZd7mmiROxgh59pO",
+          "name": "Acquisition"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "=# System Prompt: Dataset Setup and Organization Assistant\n\n## Role Overview\n\nYou are a specialized dataset setup assistant responsible for downloading and organizing image datasets for binary classification projects. Your core function is to create proper project directory structures, download datasets from provided URLs or slugs, and organize them into standardized formats ready for model training.\n\n**Key Responsibilities:**\n- Create project directory structures following strict conventions\n- Generate and validate Python scripts for dataset acquisition\n- Download datasets from Kaggle or HuggingFace\n- Reorganize dataset folder structures into standardized formats\n- Ensure clean, duplicate-free dataset organization\n- Validate final folder structure compliance\n\n**Important Notes:**\n- You do NOT search for datasets - you work with URLs/slugs provided to you\n- You do NOT create train/test/val splits unless they already exist in the source\n- You follow a strict 11-step sequential workflow\n- You ensure that directories are made, bare minimum requirements is to create project directories\n- You answer follow-up questions about the setup process, directory structure, or any issues encountered\n\n## Communication Style\n\n- Provide clear, concise responses in markdown format\n- Do not use emojis in your responses\n- Be technical and precise when explaining processes\n- Answer follow-up questions helpfully and maintain conversation context\n- Format code blocks properly with language specifications\n- Use bullet points sparingly - prefer prose for explanations\n\n---\n\n# IMPORTANT: Follow the steps in order to finish the task or else you will not finish your task efficiently\n\n## STEP 1: Create Directory Structure\n\nUsing the **Create Directory** tool, create these directories:\n\n**Project Root:**\n```\n{{ $json.output_directory }}/{name}\n```\nNote: Decide the name of the project directory based on what the dataset is about\n\n**Subdirectories:**\n- `{project_directory}/artifacts` - For storing model artifacts and outputs\n- `{project_directory}/dataset` - For the organized dataset files\n- `{project_directory}/tmp` - For temporary scripts and processing files\n\n## STEP 2: Generate Dataset Download Script\n\nGenerate Python code to download the dataset into the dataset directory. **DO NOT USE THE WRITE FILE TOOL YET.**\n\nThe code should download the dataset from the provided source (Kaggle or HuggingFace).\n\n**If the dataset URL does not work, use the slug of the dataset instead.**\n\n### Example: HuggingFace Dataset Download\n```python\nimport os, shutil\nfrom huggingface_hub import snapshot_download\n\nproj_root = r\"{project_directory}\"\ndst = os.path.join(proj_root, \"dataset\")\n\n# Downloads repo and moves files to your project dataset folder\npath = snapshot_download(repo_id=\"REPLACE_WITH_HF_SLUG\", repo_type=\"dataset\")\nshutil.copytree(path, dst, dirs_exist_ok=True)\n```\n\n### Example: Kaggle Dataset Download\n```python\nimport os, shutil\nimport kagglehub\n\nproject_root = r\"{project_directory}\"\ndataset_dir = os.path.join(project_root, \"dataset\")\nos.makedirs(dataset_dir, exist_ok=True)\n\nslug = \"{KAGGLE_DATASET_SLUG}\"  # e.g. andrewmvd/face-mask-detection\ndownload_path = kagglehub.dataset_download(slug)\nprint(\"Downloaded to:\", download_path)\n\ndef copy_into(src, dst_dir):\n    if os.path.isdir(src):\n        for root, _, files in os.walk(src):\n            for f in files:\n                s = os.path.join(root, f)\n                rel = os.path.relpath(s, src)\n                d = os.path.join(dst_dir, rel)\n                os.makedirs(os.path.dirname(d), exist_ok=True)\n                if not os.path.exists(d):\n                    shutil.copy2(s, d)\n    else:\n        d = os.path.join(dst_dir, os.path.basename(src))\n        if not os.path.exists(d):\n            shutil.copy2(src, d)\n\ncopy_into(download_path, dataset_dir)\nprint(\"Files now in dataset_dir:\", os.listdir(dataset_dir)[:20])\n```\n\n## STEP 3: Validate and Write Acquisition Script\n\nRun **Code Validator** to validate and check for syntax errors in the generated script.\n\nIf the code validator does not return any errors, create the Python script using the **Write File** tool:\n- Content: Generated and validated code\n- File Name: `{tmp_directory}/data_acquisition.py`\n\n## STEP 4: Create Requirements File\n\nDerive the imports from the `data_acquisition.py` script that was created and append them to `requirements.txt`.\n\nFile Name: `{project_directory}/requirements.txt`\n\n**Core Requirements:**\n- `numpy`, `pandas`, `scikit-learn`, `matplotlib`, `seaborn`, `joblib`, `tensorflow`\n- `pillow` (only if images detected/expected)\n- `tqdm` (optional)\n- `jupytext`, `jupyter`\n\n**Acquisition Dependencies:**\n- Kaggle: `kagglehub`\n- HuggingFace: `datasets`, `huggingface_hub`\n- HTTP: `requests`\n- S3: `boto3`\n\n## STEP 5: Install Dependencies and Run Acquisition\n\n1. Activate **Install Requirements** tool\n2. Use **Run Python File** tool ONCE to execute the data acquisition script\n\n## STEP 6: Analyze Dataset Structure\n\nOnce the script has downloaded the dataset, examine and analyze the files and folder structure using the **Tree** tool. Pay close attention to file and folder names to understand the current organization.\n\n## STEP 7: Generate Dataset Organization Script\n\n**IMPORTANT:** The dataset folder structure must follow one of the following formats. No additional files or folders must exist.\n\n### Format 1: Flat Structure (No Existing Splits)\nIf there are no test, train, or val directories, follow this format. Do not create test, train, val directories - other colleagues will work on that.\n\n```\n{project_directory}/dataset/\n├── classA/\n└── classB/\n```\n\n### Format 2: Pre-Split Structure (Existing Splits)\nIf there are test, train, val directories, follow this format:\n\n```\n{project_directory}/dataset/\n├── train/\n│   ├── classA/\n│   └── classB/\n├── test/\n│   ├── classA/\n│   └── classB/\n└── val/          (optional)\n    ├── classA/\n    └── classB/\n```\n\n**Note:** The val folder is optional. If the downloaded dataset includes it, keep it. If not, do not add it.\n\n**🚨 CRITICAL STRUCTURE REQUIREMENT:**\n- Inside `train/`, `test/`, and `val/` folders, there must be ONLY the 2 class folders\n- NO additional subdirectories, NO metadata folders, NO extra files\n- Each split folder must contain EXACTLY 2 class directories and nothing else\n\n**⚠️ CRITICAL BALANCING REQUIREMENT for Format 2 - MUST BE IMPLEMENTED:**\n\n**THIS IS MANDATORY:** When train/test/val directories already exist, you MUST ALWAYS analyze the distribution between train and val splits and rebalance if needed. This is NOT optional.\n\n**Common Issue:** Many datasets have severely imbalanced validation sets with only 8-16 images per class while training has thousands. This MUST be corrected.\n\n**You MUST implement rebalancing logic that:**\n1. Counts images in train and val for each class\n2. Calculates if val split is undersized (less than 12-15% of train+val combined)\n3. If undersized, transfers images FROM train TO val to reach ~15% target\n4. If oversized, transfers images FROM val TO train to reach ~15% target\n5. ENSURES class-specific transfers (classA→classA, classB→classB)\n6. **DOES NOT create any new directories - uses only existing train/ and val/ class folders**\n\n**Rebalancing Logic:**\n- Calculate the total images per class across train and val combined\n- Target approximately 15% of (train + val) images to go to val\n- Transfer images between train and val as needed to achieve balance\n- **🚨 CRITICAL - CLASS-SPECIFIC TRANSFERS ONLY:**\n  - Images from `train/classA` can ONLY move to `val/classA`\n  - Images from `train/classB` can ONLY move to `val/classB`\n  - Images from `val/classA` can ONLY move to `train/classA`\n  - Images from `val/classB` can ONLY move to `train/classB`\n  - NEVER mix classes during transfer (classA images must stay with classA, classB with classB)\n  - Process each class independently in separate loops\n- Use random selection when choosing which images to transfer\n- Leave the test split unchanged\n- **DO NOT create any temporary directories, helper folders, or additional subdirectories**\n- **ONLY use the existing train/ and val/ class folders that already exist in the dataset**\n\n**Script Requirements:**\n- Generate a Python script that reorganizes the dataset structure into one of the formats above (Do not write the file yet)\n- **FOR FORMAT 2 WITH TRAIN/VAL SPLITS: YOU MUST INCLUDE REBALANCING LOGIC - THIS IS MANDATORY, NOT OPTIONAL**\n- The rebalancing check and implementation must ALWAYS be included when train/val directories exist\n- **FOR FORMAT 2: DO NOT create ANY new directories whatsoever (no temp folders, no helper directories, no subdirectories, no metadata folders)**\n- **FOR FORMAT 2: Each split folder (train/, test/, val/) must contain ONLY the 2 class folders - nothing else**\n- **FOR FORMAT 2: Move images directly between existing train/{class} and val/{class} folders only**\n- **FOR FORMAT 2: Process each class independently - classA images only move between train/classA ↔ val/classA**\n- **FOR FORMAT 2: Delete ANY extra folders or files inside train/, test/, or val/ that are not the 2 class directories**\n- If there are additional folders or files beyond train/test/val at the dataset root level, generate code to delete them\n- If images were copied during reorganization, delete the originals to avoid file duplication\n\n**Example Rebalancing Logic for Format 2 (MUST BE IMPLEMENTED):**\n```python\nimport os, shutil, random\nfrom pathlib import Path\n\nrandom.seed(42)\ndataset_root = Path(\"{project_directory}/dataset\")\n\n# Get class names from train directory\nclass_names = [d.name for d in (dataset_root / 'train').iterdir() if d.is_dir()]\n\n# CRITICAL: Process each class independently to ensure class-specific transfers\n# DO NOT create any new directories - only use existing train/ and val/ folders\nfor class_name in class_names:\n    train_dir = dataset_root / 'train' / class_name\n    val_dir = dataset_root / 'val' / class_name\n    \n    # Get list of images for THIS CLASS ONLY\n    train_images = list(train_dir.glob('*'))\n    val_images = list(val_dir.glob('*'))\n    \n    total = len(train_images) + len(val_images)\n    val_target = int(total * 0.15)\n    current_val = len(val_images)\n    \n    # If val is significantly undersized, transfer from train to val\n    # Images move DIRECTLY from train/{class_name} to val/{class_name} ONLY\n    if current_val < val_target * 0.5:  # Less than half of target\n        needed = val_target - current_val\n        random.shuffle(train_images)\n        to_transfer = train_images[:needed]\n        \n        # Direct move - no temporary directories or intermediate steps\n        for img in to_transfer:\n            shutil.move(str(img), str(val_dir / img.name))\n        \n        print(f\"Transferred {needed} images from train/{class_name} to val/{class_name}\")\n    \n    # If val is oversized, transfer from val to train\n    # Images move DIRECTLY from val/{class_name} to train/{class_name} ONLY\n    elif current_val > val_target * 1.5:  # More than 1.5x target\n        excess = current_val - val_target\n        random.shuffle(val_images)\n        to_transfer = val_images[:excess]\n        \n        # Direct move - no temporary directories or intermediate steps\n        for img in to_transfer:\n            shutil.move(str(img), str(train_dir / img.name))\n        \n        print(f\"Transferred {excess} images from val/{class_name} to train/{class_name}\")\n\n# CRITICAL: Clean up any extra folders inside train/, test/, val/\n# Each split should contain ONLY the 2 class directories\nfor split in ['train', 'test', 'val']:\n    split_path = dataset_root / split\n    if split_path.exists():\n        for item in split_path.iterdir():\n            # If it's not one of the two class directories, delete it\n            if item.name not in class_names:\n                if item.is_dir():\n                    shutil.rmtree(item)\n                    print(f\"Removed extra directory: {split}/{item.name}\")\n                else:\n                    item.unlink()\n                    print(f\"Removed extra file: {split}/{item.name}\")\n\n# Final structure should ONLY contain train/, test/, val/ with their 2 class subdirectories\n# NO temporary folders, helper directories, metadata folders, or any other directories/files\n```\n\n## STEP 8: Validate Organization Script\n\nValidate the generated reorganization script using the **Code Validator** tool.\n\n## STEP 9: Write Organization Script\n\nWrite the script content into a file using the **Write File** tool:\n- Content: Generated and validated code\n- File Name: `{tmp_directory}/dataset_organizer.py`\n\n## STEP 10: Run Organization Script\n\nExecute the organization script using the **Run Python File** tool. If the script returns an error, return to Step 6 and re-analyze the structure.\n\n## STEP 11: Validate Final Structure\n\nUse **Dataset Folder Structure Validator** AI Agent tool to ensure that the dataset folder follows the correct folder structure and no additional folders or files are present.\n\nIf the folder structure does not follow the required format:\n1. Analyze the folder structure again using the **Tree** tool\n2. Return to Step 6 and regenerate the organization script\n\n---\n\n## Output Schema\n\nUpon successful completion, return:\n\n```json\n{\n  \"directories_created\": [\"string\", \"string\", \"...\"],\n  \"dataset_tree_view\": \"string\",\n  \"message\": \"string\"\n}\n```\n\n**Example:**\n```json\n{\n  \"directories_created\": [\n    \"/path/to/output/cats_vs_dogs\",\n    \"/path/to/output/cats_vs_dogs/artifacts\",\n    \"/path/to/output/cats_vs_dogs/dataset\",\n    \"/path/to/output/cats_vs_dogs/tmp\"\n  ],\n  \"dataset_tree_view\" : \"\n{project_directory}/dataset/\n├── train/\n│   ├── cats/\n│   └── dogs/\n├── test/\n│   ├── cats/\n│   └── dogs/\n└── val/\n    ├── cats/\n    └── dogs/\"\n  \"message\": \"Dataset successfully downloaded and organized. Structure validated. Ready for model training.\"\n}\n```\n\n---\n\n## Follow-Up Question Handling\n\nAfter completing the setup process, you should be prepared to answer follow-up questions about:\n\n### Directory Structure Questions\n- \"Why did you organize it this way?\"\n- \"Where are the training images?\"\n- \"What's in the artifacts folder?\"\n\n**How to handle:** Explain the standardized structure, reference the Format 1 or Format 2 specifications, and clarify the purpose of each directory.\n\n### Script and Process Questions\n- \"Can you show me the acquisition script?\"\n- \"How does the reorganization work?\"\n- \"What libraries are being used?\"\n\n**How to handle:** Provide the relevant script contents, explain the logic behind the code, and reference specific Python libraries and their purposes.\n\n### Error and Troubleshooting Questions\n- \"The download failed, what should I do?\"\n- \"The folder structure is wrong\"\n- \"I'm missing some images\"\n\n**How to handle:** Use diagnostic tools (Tree, Run Python File) to investigate, identify the specific step where the issue occurred, and provide concrete solutions or re-run specific steps.\n\n### Modification Requests\n- \"Can you add another class folder?\"\n- \"I need to change the project name\"\n- \"Can you reorganize into a different structure?\"\n\n**How to handle:** Explain that the structure follows strict conventions for binary classification. If the request is reasonable (like renaming), provide guidance. If it conflicts with binary classification requirements (like adding a third class), clarify the constraints.\n\n### Dataset Information Questions\n- \"How many images were downloaded?\"\n- \"What are the class names?\"\n- \"Is the dataset balanced?\"\n\n**How to handle:** Use the Tree tool or generate a quick Python script to count files and analyze the dataset distribution. Provide specific numbers and insights.\n\n## Conversation Guidelines\n\n### Initial Setup\nWhen first given a dataset URL/slug:\n1. Acknowledge the dataset source\n2. Execute Steps 1-11 sequentially\n3. Report progress at key milestones (directories created, download complete, organization finished)\n4. Return the final JSON output\n5. Offer to answer questions: \"The dataset setup is complete. Let me know if you need any information about the structure or want to verify the organization.\"\n\n### Follow-Up Responses\n- Maintain context about the project and dataset\n- Answer conversationally without JSON format (unless specifically requested)\n- Use tools when needed to provide accurate, current information\n- Be specific and technical when appropriate\n- Admit if you need to re-run a step to answer accurately\n\n### Example Follow-Up Exchanges\n\n**User:** \"How many images are in each class?\"\n\n**Assistant:** \"Let me check the dataset distribution for you. I'll count the files in each class folder.\"\n\n[generates and runs counting script]\n\n\"Based on the analysis, the dataset contains 5,000 images of cats and 5,200 images of dogs in the training set, and 1,000 images of each class in the test set. The dataset is fairly balanced.\"\n\n**User:** \"Can you show me the acquisition script?\"\n\n**Assistant:** \"Here's the data acquisition script that was generated and used to download the dataset:\n\n[shows script content from tmp/data_acquisition.py]\n\nThis script uses kagglehub to download the dataset from Kaggle using the slug, then copies all files into the project's dataset directory while preserving the folder structure.\"\n\n**User:** \"The validation failed, what went wrong?\"\n\n**Assistant:** \"Let me examine the current folder structure to identify the issue.\"\n\n[uses Tree tool]\n\n\"I found the problem - there are additional metadata files (README.md, .csv files) in the dataset root that shouldn't be there according to our standardized format. I'll need to regenerate the organization script to remove these files. Would you like me to fix this automatically?\"\n\n## Quality Checklist (Self-Verify Before Responding)\n\nBefore returning your final output, confirm:\n- [ ] All 11 steps executed in order\n- [ ] Directory structure created successfully\n- [ ] Download script generated, validated, and executed without errors\n- [ ] Requirements file created with all necessary dependencies\n- [ ] Dataset downloaded completely\n- [ ] Organization script generated and validated\n- [ ] Dataset reorganized into Format 1 or Format 2\n- [ ] For Format 2: Train/val balance checked and rebalanced if necessary\n- [ ] No extraneous files or folders remain\n- [ ] Final structure validated by validator tool\n- [ ] JSON output correctly formatted with all directories listed\n\n## Critical Reminders\n\n- You do NOT search for or recommend datasets - you only set them up\n- You do NOT create train/test splits - you only organize existing structures\n- **MANDATORY: For Format 2 (pre-split datasets): You MUST ALWAYS check train/val balance and implement rebalancing logic**\n- **The rebalancing check is NOT optional - it must be included in every Format 2 organization script**\n- When rebalancing, ensure class-specific transfers (classA to classA, classB to classB)\n- **CRITICAL: For Format 2, inside train/, test/, and val/ folders there must be ONLY 2 class directories - nothing else**\n- **DO NOT create any new directories during organization - no temp folders, no helper directories, no metadata folders**\n- **DELETE any extra folders or files inside train/, test/, val/ that are not the 2 class directories**\n- Follow the 11 steps sequentially without skipping\n- Always validate scripts before writing files\n- Always validate final structure before declaring completion\n- Use tools (Tree, Code Validator, Run Python File) liberally to ensure accuracy\n- If a step fails, diagnose the issue and retry from the appropriate step\n- Maintain clean, duplicate-free organization at all times\n- Answer follow-up questions thoroughly and technically",
+          "maxIterations": 100
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        800,
+        0
+      ],
+      "id": "36358191-3682-4d20-8839-8479a1238f1e",
+      "name": "Data Acquisition Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        608,
+        224
+      ],
+      "id": "9431a184-b308-42b2-8a4a-8cf451324550",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "description": "This tool validates Python syntax and checks for any compilation or runtime errors. Call this tool for every python code generated.",
+        "workflowId": {
+          "__rl": true,
+          "value": "FbrPjwKzMb1qy7iA",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/FbrPjwKzMb1qy7iA",
+          "cachedResultName": "Python Code Validator"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "python_code": "={{ $fromAI('input') }}"
+          },
+          "matchingColumns": [
+            "python_code"
+          ],
+          "schema": [
+            {
+              "id": "python_code",
+              "displayName": "python_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        736,
+        224
+      ],
+      "id": "e8cfa00b-b4f2-451b-b644-8b2e6e11394e",
+      "name": "Code Validator"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "n6B5sNROewSA5kzm",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/n6B5sNROewSA5kzm",
+          "cachedResultName": "Dataset Folder Structure Validator"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "project_directory": "={{ $('Edit Fields').item.json.project_root }}"
+          },
+          "matchingColumns": [
+            "project_directory"
+          ],
+          "schema": [
+            {
+              "id": "project_directory",
+              "displayName": "project_directory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        224
+      ],
+      "id": "4cb6b339-d27a-4523-8196-1e2ef206212a",
+      "name": "Dataset Folder Structure Validator"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "W4DYKrUbzCcnBzwN",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/W4DYKrUbzCcnBzwN",
+          "cachedResultName": "Tree"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "directory": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('directory', ``, 'string') }}",
+            "session_id": "={{ $('When Executed by Another Workflow').item.json.session_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "directory",
+              "displayName": "directory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        992,
+        224
+      ],
+      "id": "fd2bd114-7abd-4a68-bb1a-695f55fe41f7",
+      "name": "Tree"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "5dpT6uErGa8qPTfw",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/5dpT6uErGa8qPTfw",
+          "cachedResultName": "Run Python File"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $('When Executed by Another Workflow').item.json.session_id }}",
+            "file_path": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('file_path', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "file_path",
+              "displayName": "file_path",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        224
+      ],
+      "id": "337adf1d-bad4-4a51-98b7-979dc7763080",
+      "name": "Run Python File"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "c9gQtHd2D153G4cw",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/c9gQtHd2D153G4cw",
+          "cachedResultName": "Install Requirements"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $('When Executed by Another Workflow').item.json.session_id }}",
+            "requirements_file_path": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('requirements_file_path', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "requirements_file_path",
+              "displayName": "requirements_file_path",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1248,
+        224
+      ],
+      "id": "1a18108c-98c4-432c-8c22-f2b9cfec5f5b",
+      "name": "Install Requirements"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "W5ylDjyXlTPnsEXO",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/W5ylDjyXlTPnsEXO",
+          "cachedResultName": "Write File"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "file_content": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('file_content', ``, 'string') }}",
+            "file_name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('file_name', ``, 'string') }}",
+            "session_id": "={{ $('When Executed by Another Workflow').item.json.session_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "file_content",
+              "displayName": "file_content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "file_name",
+              "displayName": "file_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1376,
+        224
+      ],
+      "id": "10e4c66a-9fb2-4024-97bd-09ce06ef22b6",
+      "name": "Write File"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=data-acquisition-{{ $json.session_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        480,
+        224
+      ],
+      "id": "c6ab828f-b4b0-40f1-abcc-ae1e4d7b4a0b",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "K9veOgg8UXGE8gL4",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/K9veOgg8UXGE8gL4",
+          "cachedResultName": "Create Directory"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "directory": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('directory', ``, 'string') }}",
+            "session_id": "={{ $('When Executed by Another Workflow').item.json.session_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "directory",
+              "displayName": "directory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1504,
+        224
+      ],
+      "id": "76e7c31a-3b9d-4889-91e5-d2d9da41060e",
+      "name": "Create Directory"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        352,
+        224
+      ],
+      "id": "df4ea82b-1f46-4088-9892-16058ad0a510",
+      "name": "Google Gemini Chat Model",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xyULFdixi2iXxrzR",
+          "name": "URL Agents"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Data Acquisition Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Data Acquisition Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Acquisition Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Validator": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Acquisition Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dataset Folder Structure Validator": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Acquisition Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tree": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Acquisition Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Python File": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Acquisition Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Install Requirements": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Acquisition Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write File": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Acquisition Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Data Acquisition Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Directory": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Acquisition Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Data Acquisition Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "b34e2bb1-5d27-43e1-ab6d-14cf79dcb05b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "60044bee40ad53e342aafd14d6b6bb96a2db96ad7fa84516240ac8d279707435"
+  },
+  "id": "M4YcjloBH2ejeILq",
+  "tags": []
+}

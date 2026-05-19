@@ -1,0 +1,118 @@
+{
+  "name": "Write File",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "file_content"
+            },
+            {
+              "name": "file_name"
+            },
+            {
+              "name": "session_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8dd8be9b-84ec-4599-ae2f-fe39f4c1c20e",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "command": "=# Ensure session exists\ntmux has-session -t n8n-{{ $('When Executed by Another Workflow').item.json.session_id }} 2>/dev/null || tmux new-session -d -s n8n-{{ $('When Executed by Another Workflow').item.json.session_id }}\n\n# Markers\nSTART_MARKER=\"CMD_START_$$_$(date +%s)\"\nEND_MARKER=\"CMD_END_$$_$(date +%s)\"\n\n# Start marker\ntmux send-keys -t n8n-{{ $('When Executed by Another Workflow').item.json.session_id }}:0 \"echo $START_MARKER\" C-m\n\n# Write payload\nPAYLOAD=\"{{ $json.payload }}\"\nFILE_NAME=\"{{ $('When Executed by Another Workflow').item.json.file_name }}\"\ntmux send-keys -t n8n-{{ $('When Executed by Another Workflow').item.json.session_id }}:0 \"echo '$PAYLOAD' | base64 -d > $FILE_NAME\" C-m\n\n# Output file content\ntmux send-keys -t n8n-{{ $('When Executed by Another Workflow').item.json.session_id }}:0 \"cat $FILE_NAME\" C-m\n\n# End marker\ntmux send-keys -t n8n-{{ $('When Executed by Another Workflow').item.json.session_id }}:0 \"echo $END_MARKER\" C-m\n\n# Wait for end marker\nwhile true; do\n    sleep 0.5\n    tmux capture-pane -pt n8n-{{ $('When Executed by Another Workflow').item.json.session_id }} > /tmp/tmux_output_$$\n    if grep -q \"$END_MARKER\" /tmp/tmux_output_$$; then\n        break\n    fi\ndone",
+        "cwd": "/home/chrlskrt"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        448,
+        0
+      ],
+      "id": "0af14c0a-d012-4f75-b404-2e926a71c07b",
+      "name": "Execute a command",
+      "credentials": {
+        "sshPassword": {
+          "id": "RcUQuFXSpztgOO0c",
+          "name": "SSH Password account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const commandString =  $('When Executed by Another Workflow').first().json.file_content\nconst payload = Buffer.from(commandString, \"utf8\").toString(\"base64\");\n\nreturn [\n  {\n    json: {\n      payload: payload\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "cbb51e32-63a5-402e-9249-8ab51b0a0456",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a command": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Execute a command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "8ed069a5-c47b-4ce9-9bf9-9eff4a448bd3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "60044bee40ad53e342aafd14d6b6bb96a2db96ad7fa84516240ac8d279707435"
+  },
+  "id": "W5ylDjyXlTPnsEXO",
+  "tags": [
+    {
+      "updatedAt": "2025-12-29T17:00:59.143Z",
+      "createdAt": "2025-12-29T17:00:59.143Z",
+      "id": "BhKT6T16k0r9Uen9",
+      "name": "Jake"
+    },
+    {
+      "updatedAt": "2025-12-29T16:57:22.464Z",
+      "createdAt": "2025-12-29T16:57:22.464Z",
+      "id": "jlglXBvovc7CFeVV",
+      "name": "Sub-Workflow"
+    }
+  ]
+}

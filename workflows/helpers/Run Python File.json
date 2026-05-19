@@ -1,0 +1,73 @@
+{
+  "name": "Run Python File",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "session_id"
+            },
+            {
+              "name": "file_path"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "dc87c4d2-7ef3-49fe-bcfc-84cf2fdad88f",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "command": "=tmux has-session -t n8n-{{ $json.session_id }} 2>/dev/null || tmux new-session -d -s n8n-{{ $json.session_id }}\n\n# 2. Create marker file with timestamp\nMARKER_FILE=\"/tmp/n8n-{{ $json.session_id }}-$(date +%s).done\"\nOUTPUT_FILE=\"/tmp/n8n-{{ $json.session_id }}-$(date +%s).out\"\nrm -f \"$MARKER_FILE\" \"$OUTPUT_FILE\"\n\n# 3. Send command with tee (runs once, output goes to both tmux AND file)\ntmux send-keys -t n8n-{{ $json.session_id }}:0 \"python {{ $json.file_path }} 2>&1 | tee $OUTPUT_FILE; touch $MARKER_FILE\" C-m\n\n# 4. Wait for marker file\nwhile [ ! -f \"$MARKER_FILE\" ]; do\n    sleep 0.5\ndone\n\n# 5. Output cleaned version (strip ANSI codes and progress bars)\nsed 's/\\x1b\\[[0-9;]*m//g' \"$OUTPUT_FILE\" | sed 's/\\r/\\n/g' | grep -v '━' | grep -v '^[[:space:]]*$' | uniq\n\n# 6. Clean up\nrm -f \"$MARKER_FILE\" \"$OUTPUT_FILE\"",
+        "cwd": "/home/chrlskrt"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "5299a194-4a3a-4ef0-9698-060ba4818b5e",
+      "name": "Execute a command",
+      "credentials": {
+        "sshPassword": {
+          "id": "RcUQuFXSpztgOO0c",
+          "name": "SSH Password account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Execute a command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "2ce1c825-d0f3-42e3-ab2b-fa282f3589f5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "60044bee40ad53e342aafd14d6b6bb96a2db96ad7fa84516240ac8d279707435"
+  },
+  "id": "5dpT6uErGa8qPTfw",
+  "tags": []
+}

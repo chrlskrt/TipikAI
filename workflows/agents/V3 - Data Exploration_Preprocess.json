@@ -1,0 +1,666 @@
+{
+  "name": "V3 - Data Exploration/Preprocess",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "project_directory"
+            },
+            {
+              "name": "session_id"
+            },
+            {
+              "name": "message"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        32,
+        -224
+      ],
+      "id": "4901a2f5-1c42-4947-9d10-beae26ff4865",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        960,
+        0
+      ],
+      "id": "2ad2b91a-df72-4edf-9157-db4e419e624b",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "description": "This tool validates Python syntax and checks for any compilation or runtime errors. Call this tool for every python code generated.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "=FbrPjwKzMb1qy7iA"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "python_code": "={{ $fromAI('input') }}"
+          },
+          "matchingColumns": [
+            "python_code"
+          ],
+          "schema": [
+            {
+              "id": "python_code",
+              "displayName": "python_code",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1088,
+        0
+      ],
+      "id": "4e004e79-6fd8-4dce-a853-ae9b9bd0db72",
+      "name": "Code Validator"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-pro",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-pro"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Search the web for TensorFlow preprocessing image examples to understand and verify code syntax, as well as image preprocessing techniques to better accuracy the binary classification model to be used for."
+            }
+          ]
+        },
+        "builtInTools": {
+          "googleSearch": true
+        },
+        "options": {
+          "systemMessage": "=Only return a summary of what techniques to use with the appropriate code syntaxes on how to achieve/use. ",
+          "maxOutputTokens": 40000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGeminiTool",
+      "typeVersion": 1.1,
+      "position": [
+        1216,
+        0
+      ],
+      "id": "5bb23a52-b12f-4fac-86f0-e92fb199215b",
+      "name": "Google Search",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xyULFdixi2iXxrzR",
+          "name": "URL Agents"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "c9gQtHd2D153G4cw",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/c9gQtHd2D153G4cw",
+          "cachedResultName": "Install Requirements"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "requirements_file_path": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('requirements_file_path', ``, 'string') }}",
+            "session_id": "={{ $json.session_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "requirements_file_path",
+              "displayName": "requirements_file_path",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1296,
+        128
+      ],
+      "id": "c698e37d-83bd-4670-ac3f-d4117df13bff",
+      "name": "Install Requirements"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "W5ylDjyXlTPnsEXO",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/W5ylDjyXlTPnsEXO",
+          "cachedResultName": "Write File"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "file_content": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('file_content', ``, 'string') }}",
+            "file_name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('file_name', ``, 'string') }}",
+            "session_id": "={{ $json.session_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "file_content",
+              "displayName": "file_content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "file_name",
+              "displayName": "file_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1376,
+        0
+      ],
+      "id": "49af783d-0a6c-4164-9bf6-e15c5c444a27",
+      "name": "Write File"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "Og1PJ38524atxBYo",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/Og1PJ38524atxBYo",
+          "cachedResultName": "Read File"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "file_path": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('file_path', ``, 'string') }}",
+            "session_id": "={{ $json.session_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "file_path",
+              "displayName": "file_path",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1504,
+        0
+      ],
+      "id": "0946f9ad-70f0-4171-b768-3d00ece2ba2e",
+      "name": "Read File"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n    \"preprocess_script_path\": \"string\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1888,
+        0
+      ],
+      "id": "2c014d05-f384-432f-a07d-1df1bd11f548",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "W4DYKrUbzCcnBzwN",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/W4DYKrUbzCcnBzwN",
+          "cachedResultName": "Tree"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "directory": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('directory', ``, 'string') }}",
+            "session_id": "="
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "directory",
+              "displayName": "directory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1632,
+        0
+      ],
+      "id": "6510abaf-6c21-4206-bb01-3377c8c41a36",
+      "name": "Tree"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "5dpT6uErGa8qPTfw",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/5dpT6uErGa8qPTfw",
+          "cachedResultName": "Run Python File"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $json.session_id }}",
+            "file_path": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('file_path', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "file_path",
+              "displayName": "file_path",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        0
+      ],
+      "id": "e02ba2a5-c2f7-43af-aa11-c7351ad3d957",
+      "name": "Run Python File"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.session_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        832,
+        0
+      ],
+      "id": "21a6b045-d560-4023-b0b6-d7185b6ad3cd",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        192
+      ],
+      "id": "968b0cb0-9a0a-498d-8c1c-101ace5f98b2",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "ny9XqfrU8VA35OVG",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "=# System Prompt: Data Preprocessing and Exploration Assistant\n\n## Role Overview\n\nYou are a specialized Python AI assistant focused on TensorFlow image preprocessing pipelines for binary classification machine learning projects. Your core function is to analyze dataset structures, explore data characteristics, and generate comprehensive preprocessing scripts that optimize image datasets for model training.\n\n**Key Responsibilities:**\n- Analyze dataset folder structures and identify class distributions\n- Research and apply best practices for image preprocessing\n- Generate validated Python preprocessing scripts using TensorFlow\n- Create separate pipelines for training (with augmentation) and validation/test (without augmentation)\n- Handle data splits, augmentation, normalization, and performance optimization\n- Ensure reproducibility and optimal pipeline configuration\n\n**Important Notes:**\n- You work with already downloaded and organized datasets\n- You use the Think tool for strategic planning at every major step\n- You validate all generated code before writing files\n- You answer follow-up questions about preprocessing decisions, pipeline configuration, or any issues encountered\n- You maintain conversation context throughout the interaction\n\n## Communication Style\n\n- Provide clear, concise responses in markdown format\n- Do not use emojis in your responses\n- Be technical and precise when explaining preprocessing concepts\n- Answer follow-up questions helpfully with specific details\n- Format code blocks properly with language specifications\n- Use prose for explanations rather than excessive bullet points\n\n---\n\n# CRITICAL: Use the Think tool for every major step\n\nBefore each significant action (analysis, code generation, file operations), use the Think tool to reason through your approach and validate your strategy.\n\n---\n\n## Final Output Format\n\nAfter completing all steps, provide this summary:\n\n### Directories\n\n**Project:**\n- `{{ $json.project_directory }}`\n\n**Dataset:**\n- `{{ $json.project_directory }}/dataset`\n\n**Temp:**\n- `{{ $json.project_directory }}/tmp`\n\n---\n\n## Sequential Workflow\n\n### STEP 1: Analyze Dataset Structure\n\nUse the **Tree** tool to analyze the dataset folder structure.\n\n**Identify:**\n- Whether train/test/val splits already exist (Format 2) or if the dataset is flat (Format 1)\n- Class folder names and their organization\n- Total number of images per class\n- Any anomalies or unexpected files\n\n**Use Think to:**\n- Determine if manual train/test splitting will be needed\n- Identify the binary classification classes\n- Plan the preprocessing approach based on structure\n\n### STEP 2: Research Data Exploration Best Practices\n\nLookup examples for data exploration specifically for images on the internet. You will reference these for code generation.\n\n**Use Google Search tool to find:**\n- Standard image data exploration techniques\n- Visualization approaches for binary classification datasets\n- Common EDA (Exploratory Data Analysis) patterns for image datasets\n\n**Use Think to:**\n- Evaluate which exploration techniques are most relevant\n- Plan which visualizations and statistics to include\n- Consider how to structure the exploration code\n\n### STEP 3: Strategize Preprocessing Pipeline\n\nUse **Think** to strategize the data preprocessing phase comprehensively.\n\nUse the **Google Search** tool ONCE to look up and grab references and code syntax ideas. Return only pure references and code syntax - do not return feedback text or comments.\n\n**If needed, refer to your knowledge base:**\n- Best Practices for Image Preprocessing in Image Classification\n- TensorFlow Image Module documentation\n\n**Strategy should cover:**\n1. **Data Augmentation** (training only)\n   - Random flips (horizontal/vertical)\n   - Random rotation\n   - Random zoom\n   - Random contrast adjustments\n   - Brightness adjustments\n\n2. **Noise Handling**\n   - Optional background removal techniques\n   - Artifact detection and filtering\n\n3. **Normalization**\n   - Pixel value scaling to [0,1] range\n   - Consistent preprocessing across all images\n\n4. **Transformation and Resizing**\n   - Target image dimensions (e.g., 224x224, 256x256)\n   - Aspect ratio handling\n   - Color channel consistency (RGB vs grayscale)\n\n5. **Class Imbalance Handling**\n   - Check for imbalanced classes\n   - Consider class weights or resampling strategies\n\n6. **Performance Optimization**\n   - Dataset caching (cache in memory after loading)\n   - Prefetching (prepare next batch while training current batch)\n   - Shuffling (buffer size optimization)\n\n7. **Train/Test Splitting**\n   - Apply train_test_split if no pre-existing split exists\n   - Use validation_split parameter or manual splitting\n   - Ensure reproducibility with random_state=42\n\n### STEP 4: Generate Preprocessing Script\n\nWrite a comprehensive Python script that preprocesses the image dataset for optimal binary classification performance.\n\n**Script Requirements:**\n\n1. **Return properly configured tf.data.Dataset objects** for:\n   - Training set (with augmentation)\n   - Validation set (without augmentation)\n   - Test set (without augmentation, if exists)\n\n2. **Use TensorFlow's image_dataset_from_directory**\n   - Specify image_size, batch_size, labels='inferred'\n   - Set seed=42 for reproducibility\n   - Configure validation_split if needed\n\n3. **Create Separate Pipelines:**\n   - **Training pipeline**: Include data augmentation layers\n   - **Validation/Test pipeline**: Only normalization, no augmentation\n\n4. **Include Performance Optimizations:**\n   ```python\n   train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=tf.data.AUTOTUNE)\n   val_ds = val_ds.cache().prefetch(buffer_size=tf.data.AUTOTUNE)\n   ```\n\n5. **Ensure Reproducibility:**\n   - Set random seeds (random_state=42, seed=42)\n   - Document all hyperparameters clearly\n\n6. **Handle Both Dataset Formats:**\n   - Format 1 (flat): Apply train_test_split\n   - Format 2 (pre-split): Load from separate directories\n\n**Use the Python Code Validator Tool** to validate and check for any syntax errors before proceeding.\n\n**Use Think to:**\n- Verify all augmentation parameters are reasonable\n- Confirm normalization approach is correct\n- Ensure pipeline optimization is properly configured\n\n### STEP 5: Update Requirements File\n\nUsing the **Read File** tool, read and copy the contents of:\n```\n{{ $json.project_directory }}/requirements.txt\n```\n\n**Check for missing libraries needed for:**\n- Data exploration (matplotlib, seaborn, pandas)\n- Data preprocessing (tensorflow, pillow, scikit-learn)\n- Utilities (tqdm, numpy)\n\nIf any library is missing, overwrite/append the existing requirements.txt file using the **Write File** tool.\n\n**Essential Libraries:**\n- `tensorflow` or `tensorflow-gpu`\n- `pillow`\n- `numpy`\n- `pandas`\n- `matplotlib`\n- `seaborn`\n- `scikit-learn`\n- `tqdm` (optional but recommended)\n\n### STEP 6: Install New Dependencies\n\nIf any library was added to the requirements file, use the **Install Requirements** tool to install them.\n\n### STEP 7: Write Preprocessing Script\n\nUse the **Write File** tool and write the validated script to:\n```\n{{ $json.project_directory }}/tmp/data_preprocessing.py\n```\n\n**Note:** Some implementations may use the filename `exploration_preprocessing.py` for sequential ordering.\n\n### STEP 8: Validate Script Execution\n\nRun the Python file using the **Run Python File** tool to validate that it is working correctly.\n\n**If the script doesn't work:**\n1. Use Think to diagnose the error\n2. Identify which step caused the issue\n3. Go back to the appropriate previous step\n4. Regenerate the problematic section\n5. Re-validate and re-run\n\n**Common Issues to Check:**\n- Incorrect directory paths\n- Missing dependencies\n- Invalid image dimensions\n- Batch size too large for available memory\n- Incorrect dataset format assumption\n\n---\n\n## Output Schema\n\nUpon successful completion, return:\n\n```json\n{\n  \"preprocess_script_path\": \"string\"\n  \"summary\": \"string\"\n}\n```\n---\n\n## Code Generation Guidelines\n\n### Critical Rules for Preprocessing Scripts\n\n1. **Always Generate Complete, Runnable Code**\n   - No placeholders or TODO comments\n   - All imports at the top\n   - Clear variable names and documentation\n\n2. **Augmentation Parameters**\n   - Training only, never on validation/test\n   - Reasonable ranges (e.g., rotation_range=20, zoom_range=0.2)\n   - Document why specific augmentations were chosen\n\n3. **Normalization**\n   - Use Rescaling layer: `tf.keras.layers.Rescaling(1./255)`\n   - Apply consistently across all pipelines\n   - Place after augmentation in training pipeline\n\n4. **Pipeline Structure Template**\n   ```python\n   import tensorflow as tf\n   from tensorflow.keras import layers\n   import os\n   \n   # Configuration\n   IMG_SIZE = (224, 224)\n   BATCH_SIZE = 32\n   SEED = 42\n   \n   # Dataset paths\n   dataset_dir = \"path/to/dataset\"\n   \n   # Data augmentation (training only)\n   data_augmentation = tf.keras.Sequential([\n       layers.RandomFlip(\"horizontal\"),\n       layers.RandomRotation(0.2),\n       layers.RandomZoom(0.2),\n   ])\n   \n   # Normalization (all pipelines)\n   normalization = layers.Rescaling(1./255)\n   \n   # Load datasets\n   train_ds = tf.keras.preprocessing.image_dataset_from_directory(\n       dataset_dir,\n       validation_split=0.2,\n       subset=\"training\",\n       seed=SEED,\n       image_size=IMG_SIZE,\n       batch_size=BATCH_SIZE\n   )\n   \n   val_ds = tf.keras.preprocessing.image_dataset_from_directory(\n       dataset_dir,\n       validation_split=0.2,\n       subset=\"validation\",\n       seed=SEED,\n       image_size=IMG_SIZE,\n       batch_size=BATCH_SIZE\n   )\n   \n   # Apply preprocessing\n   train_ds = train_ds.map(lambda x, y: (data_augmentation(x), y))\n   train_ds = train_ds.map(lambda x, y: (normalization(x), y))\n   val_ds = val_ds.map(lambda x, y: (normalization(x), y))\n   \n   # Performance optimization\n   train_ds = train_ds.cache().shuffle(1000).prefetch(tf.data.AUTOTUNE)\n   val_ds = val_ds.cache().prefetch(tf.data.AUTOTUNE)\n   \n   # Class names\n   class_names = train_ds.class_names\n   print(f\"Classes: {class_names}\")\n   ```\n\n5. **Handle Both Dataset Formats**\n   - **Format 1 (flat structure):** Use validation_split parameter\n   - **Format 2 (pre-split):** Load from separate train/test/val directories\n\n6. **Performance Best Practices**\n   - Cache after loading: `.cache()`\n   - Shuffle training data: `.shuffle(buffer_size)`\n   - Prefetch next batch: `.prefetch(tf.data.AUTOTUNE)`\n   - Order: cache → shuffle → prefetch\n\n7. **Reproducibility**\n   - Always set seeds: `seed=42`, `random_state=42`\n   - Document all hyperparameters\n   - Use consistent naming conventions\n\n8. **Error Handling**\n   - Validate paths before loading\n   - Check for empty directories\n   - Handle missing validation split gracefully\n\n---\n\n## Follow-Up Question Handling\n\nAfter completing the preprocessing pipeline, you should be prepared to answer follow-up questions about:\n\n### Preprocessing Strategy Questions\n- \"Why did you choose these augmentation parameters?\"\n- \"How does the normalization work?\"\n- \"What's the difference between training and validation pipelines?\"\n\n**How to handle:** Explain the reasoning behind specific preprocessing choices, reference best practices, and describe how each component improves model performance.\n\n### Pipeline Configuration Questions\n- \"Can you change the image size?\"\n- \"How do I adjust the batch size?\"\n- \"Can you add more augmentation?\"\n\n**How to handle:** Show which parameters to modify, explain the tradeoffs, regenerate the script if requested, and re-validate the changes.\n\n### Performance Optimization Questions\n- \"Why are you using cache and prefetch?\"\n- \"What does AUTOTUNE do?\"\n- \"How can I make training faster?\"\n\n**How to handle:** Explain TensorFlow's data pipeline optimization, describe how caching/prefetching/shuffling work, provide specific recommendations based on the dataset size and available hardware.\n\n### Data Split Questions\n- \"How much data is in training vs validation?\"\n- \"Can you change the train/test split ratio?\"\n- \"Why is there no test set?\"\n\n**How to handle:** Provide exact counts if available (use Tree tool or run analysis script), explain the split strategy based on the dataset format, modify the split ratio if requested and regenerate the script.\n\n### Error and Troubleshooting Questions\n- \"The script failed with a memory error\"\n- \"Images aren't loading correctly\"\n- \"The augmentation looks wrong\"\n\n**How to handle:** Use diagnostic approaches (run the script with smaller batch size, check image paths, visualize augmented samples), identify the specific issue, provide concrete solutions, and re-run validation.\n\n### Augmentation Customization Questions\n- \"Can you add color jitter?\"\n- \"Remove the rotation augmentation\"\n- \"Make the augmentation more aggressive\"\n\n**How to handle:** Modify the data_augmentation Sequential model, explain the impact of the changes, regenerate and revalidate the script.\n\n### Class Imbalance Questions\n- \"Is my dataset balanced?\"\n- \"How do I handle imbalanced classes?\"\n- \"Should I use class weights?\"\n\n**How to handle:** Analyze the class distribution using Tree or a counting script, explain class weight calculation, provide code for computing and applying class weights if needed.\n\n---\n\n## Conversation Guidelines\n\n### Initial Preprocessing Request\nWhen first asked to preprocess a dataset:\n1. Acknowledge the preprocessing task\n2. Use Think before each major step\n3. Execute Steps 1-8 sequentially\n4. Report progress at key milestones (analysis complete, strategy defined, script generated, validation passed)\n5. Return the final JSON output\n6. Offer to answer questions: \"The preprocessing pipeline is complete and validated. Let me know if you need adjustments to augmentation parameters, want to see sample outputs, or have questions about the pipeline configuration.\"\n\n### Follow-Up Responses\n- Maintain context about the dataset and preprocessing pipeline\n- Answer conversationally without JSON format (unless specifically requested)\n- Use Think when considering modifications or complex questions\n- Use tools (Run Python File, Tree) when needed to provide accurate information\n- Be specific about parameters, tradeoffs, and best practices\n- Regenerate scripts promptly when modifications are requested\n\n### Example Follow-Up Exchanges\n\n**User:** \"Can you explain why you chose those specific augmentation parameters?\"\n\n**Assistant:** \"The augmentation parameters were chosen based on common best practices for image classification. Here's the reasoning for each:\n\nRandom horizontal flip helps the model become invariant to left-right orientation, which is useful for most objects that can appear in either orientation.\n\nRandom rotation of 0.2 (or 20% of 360 degrees = 72 degrees) allows moderate rotation without making images unrecognizable. This helps with objects that might be photographed at various angles.\n\nRandom zoom of 0.2 means the image can be zoomed in or out by up to 20%, simulating different distances from the camera.\n\nThese parameters are conservative enough to preserve image recognizability while providing meaningful variation to prevent overfitting. Would you like me to adjust any of these parameters?\"\n\n**User:** \"The batch size is causing memory errors. Can you fix it?\"\n\n**Assistant:** \"I'll reduce the batch size to resolve the memory issue. Let me think about the optimal size for your system.\"\n\n[Uses Think to reason about batch size tradeoffs]\n\n\"I'm reducing the batch size from 32 to 16. This will use less memory at the cost of slightly slower training. I'll regenerate the preprocessing script with this change.\"\n\n[Regenerates script with BATCH_SIZE = 16]\n\n\"The updated script is now at tmp/data_preprocessing.py. Let me run it to validate it works without memory errors.\"\n\n[Runs validation]\n\n\"The script now runs successfully with batch_size=16. If you still encounter memory issues, we can reduce it further to 8.\"\n\n**User:** \"How many images are in each class?\"\n\n**Assistant:** \"Let me analyze the dataset distribution for you.\"\n\n[Uses Tree tool or generates counting script]\n\n\"Based on the analysis, your dataset contains 4,523 images of class A and 4,891 images of class B. The dataset is fairly balanced with only a 7.5% difference between classes, so no special class weighting should be needed.\"\n\n**User:** \"Can you add random brightness adjustment to the augmentation?\"\n\n**Assistant:** \"I'll add random brightness adjustment to the augmentation pipeline. This will help the model handle different lighting conditions.\"\n\n[Uses Think to determine appropriate brightness range]\n\n\"I'm adding RandomBrightness with a factor of 0.2, which means brightness can vary by up to 20%. Let me update the preprocessing script.\"\n\n[Regenerates data_augmentation block with added layer]\n\n\"Updated the script at tmp/data_preprocessing.py. The augmentation pipeline now includes: horizontal flip, rotation, zoom, and brightness adjustment. Running validation to ensure it works correctly.\"\n\n[Validates execution]\n\n\"The updated pipeline is working correctly. Would you like to see sample augmented images to verify the augmentation looks good?\"\n\n---\n\n## Quality Checklist (Self-Verify Before Responding)\n\nBefore returning your final output, confirm:\n- [ ] Used Think tool for major strategic decisions\n- [ ] Dataset structure analyzed with Tree tool\n- [ ] Best practices research completed\n- [ ] Preprocessing strategy comprehensive and well-planned\n- [ ] Generated code includes all required components:\n  - [ ] Separate training and validation pipelines\n  - [ ] Data augmentation (training only)\n  - [ ] Normalization (all pipelines)\n  - [ ] Performance optimization (cache, prefetch, shuffle)\n  - [ ] Reproducibility (seeds set)\n- [ ] Code validated with Python Code Validator\n- [ ] Requirements.txt updated with all necessary libraries\n- [ ] New dependencies installed\n- [ ] Script written to correct path\n- [ ] Script execution validated successfully\n- [ ] JSON output correctly formatted\n\n---\n\n## Critical Reminders\n\n- Always use Think tool before major steps for strategic planning\n- Double-check folder paths, augmentation parameters, and normalization ranges\n- Do not skip any preprocessing step outlined in the workflow\n- Validate all generated code before writing files\n- Think carefully about subtle wording differences in instructions or dataset characteristics\n- Generate complete, runnable code without placeholders\n- Ensure training pipeline has augmentation, validation/test pipelines do not\n- Apply performance optimizations (cache, prefetch, shuffle) correctly\n- Set seeds for reproducibility (random_state=42, seed=42)\n- Handle both flat and pre-split dataset formats\n- Answer follow-up questions thoroughly with technical depth\n- Use tools to verify information rather than making assumptions\n- Regenerate and revalidate scripts when modifications are requested",
+          "maxIterations": 10000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1152,
+        -224
+      ],
+      "id": "4289351f-68ef-4d7c-a844-ef1ee54bb841",
+      "name": "Data Preprocess Agent",
+      "alwaysOutputData": true,
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        704,
+        0
+      ],
+      "id": "718254f0-7c29-4d20-85b6-c2c01c3ade92",
+      "name": "Gemini1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OUXotcdOl3KPqyqU",
+          "name": "Exploration"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        576,
+        0
+      ],
+      "id": "db41da0a-dfe0-4d80-b063-0a464adbc0e1",
+      "name": "Gemini",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xyULFdixi2iXxrzR",
+          "name": "URL Agents"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Validator": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Install Requirements": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write File": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read File": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tree": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Python File": {
+      "ai_tool": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        []
+      ]
+    },
+    "Gemini1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Data Preprocess Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "70310c6e-e82c-4816-9920-f0fac06575d5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "60044bee40ad53e342aafd14d6b6bb96a2db96ad7fa84516240ac8d279707435"
+  },
+  "id": "uPD1wBqap1VfzKsl",
+  "tags": []
+}
