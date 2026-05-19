@@ -10,7 +10,7 @@
     "vercel-build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
-    "dev": "nest start --watch",
+    "dev": "nest start --watch --port 8000",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node -r tsconfig-paths/register dist/main",
     "generate:types": "kysely-codegen --dialect postgres --out-file=./src/database/db.d.ts",

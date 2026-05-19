@@ -7,6 +7,7 @@ import { WizardContainer } from "@/components/model-wizard/wizard-container";
 import { ModeSelection } from "@/components/model-wizard/mode-selection";
 import { ChatInterface } from "@/components/model-wizard/chat-interface";
 import { cn } from "@/lib/utils";
+import { getUserFromToken } from "@/lib/types";
 import { Moon, Sun, LogIn, Loader2, ArrowLeft, PanelLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -36,16 +37,19 @@ export default function Home() {
     );
     const [hasChatted, setHasChatted] = React.useState(false);
     const [refreshTrigger, setRefreshTrigger] = React.useState(0);
+    const [currentUser, setCurrentUser] = React.useState<{ id: string; email: string; name?: string } | null>(null);
 
     React.useEffect(() => {
         setMounted(true);
         const token = localStorage.getItem("access_token");
         setIsLoggedIn(!!token);
+        setCurrentUser(getUserFromToken());
 
         // Listen for storage changes (e.g., when token is removed due to 401 error)
         const handleStorageChange = (e: StorageEvent) => {
             if (e.key === "access_token") {
                 setIsLoggedIn(!!e.newValue);
+                setCurrentUser(getUserFromToken());
             }
         };
 
@@ -53,6 +57,7 @@ export default function Home() {
         const handleAuthChange = () => {
             const currentToken = localStorage.getItem("access_token");
             setIsLoggedIn(!!currentToken);
+            setCurrentUser(getUserFromToken());
         };
 
         window.addEventListener("storage", handleStorageChange);
@@ -83,17 +88,6 @@ export default function Home() {
 
     const handleModeSelect = async (selectedMode: 'one-prompt' | 'step-by-step') => {
         setMode(selectedMode);
-        
-        // If step-by-step is selected and we don't have a chat loaded, create one
-        if (selectedMode === 'step-by-step' && !loadedChatId) {
-            try {
-                const { createChat } = await import('@/lib/api');
-                const newChat = await createChat('New ML Assistant Chat');
-                setLoadedChatId(newChat.id);
-            } catch (error) {
-                console.error('Failed to create initial chat for step-by-step:', error);
-            }
-        }
     };
 
     const handleBackToSelection = () => {
@@ -252,53 +246,23 @@ export default function Home() {
                         <ModeSelection onSelectMode={handleModeSelect} />
                     </div>
                 ) : mode === 'step-by-step' ? (
-                    <div className="flex-1 overflow-hidden relative flex flex-col items-center justify-center">
-                        {!loadedChatId ? (
-                             <div className="flex flex-col items-center gap-4 p-8 text-center animate-in fade-in duration-500">
-                                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                                <div className="space-y-2">
-                                    <h3 className="text-lg font-semibold">Initializing Assistant</h3>
-                                    <p className="text-sm text-muted-foreground max-w-xs">
-                                        Preparing your dedicated chat environment for custom model generation.
-                                    </p>
-                                </div>
-                            </div>
-                        ) : (
-                            <>
-                                {/* Back button - removed if already chatted */}
-                                {!hasChatted && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="absolute top-4 left-4 z-50 gap-2 bg-background/50 backdrop-blur-sm border hover:bg-background"
-                                        onClick={handleBackToSelection}
-                                    >
-                                        <ArrowLeft className="h-4 w-4" />
-                                        Back to Selection
-                                    </Button>
-                                )}
-                                <ChatInterface 
-                                    chatId={loadedChatId} 
-                                    onMessage={handleMessageSaved} 
-                                    initialMessages={loadedMessages}
-                                />
-                            </>
-                        )}
+                    <div className="flex-1 overflow-hidden relative flex flex-col">
+                        <ChatInterface 
+                            chatId={loadedChatId} 
+                            onMessage={handleMessageSaved} 
+                            onChatIdEstablished={(id) => {
+                                if (!loadedChatId) {
+                                    setLoadedChatId(id);
+                                    setRefreshTrigger(prev => prev + 1);
+                                }
+                            }}
+                            initialMessages={loadedMessages}
+                            user={currentUser ? { id: currentUser.id, name: currentUser.name, email: currentUser.email } : undefined}
+                        />
                     </div>
                 ) : (
                     <div className="flex-1 overflow-auto bg-muted/5 p-4">
-                        {/* Back button */}
-                        <div className="mb-4">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="gap-2"
-                                onClick={handleBackToSelection}
-                            >
-                                <ArrowLeft className="h-4 w-4" />
-                                Back to Selection
-                            </Button>
-                        </div>
+                        {/* One-prompt mode active viewport */}
                         <WizardContainer 
                             loadedChatId={loadedChatId}
                             loadedChatTitle={loadedChatTitle}

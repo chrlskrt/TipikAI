@@ -435,9 +435,9 @@ export interface ExtensionsPgStatStatementsInfo {
 export interface Messages {
   chat_id: string | null;
   /**
-   * JSONB column storing message content. Can be text messages {"text": "..."} or structured data like dataset search/model training responses
+   * Plain text column storing message content.
    */
-  content: Json | null;
+  content: string | null;
   created_at: Generated<Timestamp>;
   id: Generated<string>;
   is_user: boolean | null;

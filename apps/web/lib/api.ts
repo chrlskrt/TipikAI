@@ -386,14 +386,15 @@ export const getMessages = async (chatId: string): Promise<Message[]> => {
 };
 
 // Save a new message to a chat
-export const saveMessage = async (chatId: string, isUser: boolean, content: any): Promise<Message> => {
+export const saveMessage = async (chatId: string, isUser: boolean, content: any, userId?: string): Promise<Message> => {
   const messagePreview = typeof content === 'string' ? content.substring(0, 50) : 'object';
-  console.log(`[API] Saving ${isUser ? 'user' : 'bot'} message for chat ${chatId}:`, { preview: messagePreview });
+  console.log(`[API] Saving ${isUser ? 'user' : 'bot'} message for chat ${chatId}:`, { preview: messagePreview, userId });
   
   try {
     const response = await apiClient.post<CreateMessageResponse>(`/chat/${chatId}/message`, {
       isUser,
       content,
+      userId,
     });
     console.log(`[API] Message saved successfully. ID: ${response.data.data.id}`);
     return response.data.data;

@@ -3,32 +3,65 @@
 import * as React from "react";
 import { saveMessage } from "@/lib/api";
 
+interface ChatUser {
+    id?: string;
+    name?: string;
+    email?: string;
+}
+
 interface ChatInterfaceProps {
     chatId?: string;
     onMessage?: () => void;
+    onChatIdEstablished?: (chatId: string) => void;
     initialMessages?: any[];
+    user?: ChatUser;
 }
 
-export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatInterfaceProps) {
+export function ChatInterface({ chatId, onMessage, onChatIdEstablished, initialMessages = [], user }: ChatInterfaceProps) {
     const chatContainerRef = React.useRef<HTMLDivElement>(null);
     const n8nWebhookUrl = process.env.NEXT_PUBLIC_N8N_CHAT_URL;
     const [lastInitializedChatId, setLastInitializedChatId] = React.useState<string | undefined>(undefined);
+    const [lastMessagesCount, setLastMessagesCount] = React.useState(0);
+    const activeSessionIdRef = React.useRef<string | undefined>(chatId);
 
     React.useEffect(() => {
         if (!n8nWebhookUrl || !chatContainerRef.current) return;
         
-        // Only re-initialize if chatId has changed
-        if (chatId === lastInitializedChatId && lastInitializedChatId !== undefined) return;
+        const currentMessagesCount = initialMessages?.length || 0;
 
-        console.log('[ChatInterface] Initializing with chatId:', chatId);
+        // Only re-initialize if:
+        // 1. chatId has changed (selecting a different chat)
+        // 2. We were at 0 messages and now we have history (history loading finished)
+        // 3. We are resetting (New Wizard)
+        
+        if (chatId === lastInitializedChatId && 
+            currentMessagesCount === lastMessagesCount && 
+            lastInitializedChatId !== undefined) {
+            return;
+        }
+
+        // If prop matches our active session (which we just created inside), 
+        // AND we haven't suddenly loaded new history from outside, DON'T re-init.
+        if (chatId && chatId === activeSessionIdRef.current && currentMessagesCount === lastMessagesCount) {
+             return;
+        }
+        
+        console.log('[ChatInterface] Initializing. ChatId:', chatId, 'History count:', currentMessagesCount);
+        
+        // Track state to prevent loops
+        setLastInitializedChatId(chatId);
+        setLastMessagesCount(currentMessagesCount);
+        if (chatId) activeSessionIdRef.current = chatId;
 
         // Clear the container to allow re-initialization
         chatContainerRef.current.innerHTML = '';
 
         // Prepare initial messages for the widget
-        const historyStrings = initialMessages.length > 0 
+        const historyStrings = (initialMessages && initialMessages.length > 0)
             ? initialMessages.map(m => {
-                const text = typeof m.content === 'string' ? m.content : (m.content?.text || JSON.stringify(m.content));
+                const text = typeof m.content === 'string' 
+                    ? m.content 
+                    : (m.content?.text || m.content?.chatInput || JSON.stringify(m.content));
                 return text;
             })
             : [
@@ -37,14 +70,66 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                 "To get started, tell me: What would you like your model to predict?"
             ];
 
+        // Generate dynamic CSS to style user messages in history correctly
+        // Since n8n widget treats all initialMessages as "bot" messages, 
+        // we target them by their position in the list.
+        const dynamicHistoryStyles = (initialMessages || []).map((m, i) => {
+            const isUser = m.is_user || m.isUser;
+            if (isUser) {
+                // nth-child targets the message container. 
+                // We apply "user" alignment and strip bot styling.
+                const index = i + 1;
+                return `
+                    #n8n-chat [class*="MessagesList"] > div:nth-child(${index}),
+                    #n8n-chat .chat-messages-list > div:nth-child(${index}) {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: flex-end !important;
+                        width: 100% !important;
+                    }
+                    #n8n-chat [class*="MessagesList"] > div:nth-child(${index}) [class*="message"],
+                    #n8n-chat .chat-messages-list > div:nth-child(${index}) .message {
+                        background: transparent !important;
+                        border: none !important;
+                        box-shadow: none !important;
+                        padding: 0.25rem 0 !important;
+                        text-align: right !important;
+                        color: hsl(var(--muted-foreground)) !important;
+                        font-weight: 500 !important;
+                        margin-left: auto !important;
+                        margin-right: 0 !important;
+                    }
+                `;
+            }
+            return '';
+        }).join('\n');
+        
+        // Inject dynamic styles
+        let styleTag = document.getElementById('n8n-history-styles');
+        if (!styleTag) {
+            styleTag = document.createElement('style');
+            styleTag.id = 'n8n-history-styles';
+            document.head.appendChild(styleTag);
+        }
+        styleTag.innerHTML = dynamicHistoryStyles;
+
         // Dynamically import n8n chat to avoid SSR issues
         import('@n8n/chat').then(({ createChat }) => {
+            // Get auth token from localStorage
+            const authToken = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+            
+            // Track the actual sessionId from n8n
+            let n8nSessionId: string | null = null;
+            
             // Initialize n8n chat widget
             createChat({
                 webhookUrl: n8nWebhookUrl,
                 webhookConfig: {
                     method: 'POST',
-                    headers: {},
+                    headers: {
+                        // Pass authentication token to n8n
+                        ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
+                    },
                     // Attempt to pass a long timeout (some wrappers support this)
                     timeout: 300000 // 5 minutes
                 },
@@ -53,35 +138,55 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                 chatInputKey: 'chatInput',
                 chatSessionKey: 'sessionId',
                 loadPreviousSession: false,
-                metadata: chatId ? { chatId } : {},
+                initialMessages: historyStrings as any,
+                metadata: {
+                    ...(chatId && { chatId }),
+                    ...(user?.id && { userId: user.id }),
+                    ...(user?.name && { userName: user.name }),
+                    ...(user?.email && { userEmail: user.email }),
+                },
                 beforeSubmit: async (data: any) => {
-                    console.log('[ChatInterface] Sending user message to saveMessage:', { chatId, input: data.chatInput });
-                    if (chatId && data.chatInput) {
-                        try {
-                            const result = await saveMessage(chatId, true, data.chatInput);
-                            console.log('[ChatInterface] User message saved successfully:', result.id);
-                            if (onMessage) onMessage();
-                        } catch (err: any) {
-                            console.error('[ChatInterface] Failed to save user message:', {
-                                chatId,
-                                error: err.message,
-                                response: err.response?.data
-                            });
-                            if (onMessage) onMessage();
+                    // Get the sessionId from n8n (this is the chat ID)
+                    const sessionId = data.sessionId || n8nSessionId;
+                    
+                    console.log('[ChatInterface] Before submit:', { sessionId, chatInput: data.chatInput });
+                    
+                    if (sessionId) {
+                        // If this is the first time we see this sessionId and we don't have a chatId prop,
+                        // notify the parent so it can "adopt" this session as the current chat.
+                        if (!chatId && onChatIdEstablished) {
+                            console.log('[ChatInterface] Notifying parent of established chatId:', sessionId);
+                            activeSessionIdRef.current = sessionId; // Update ref to prevent re-init on prop change
+                            onChatIdEstablished(sessionId);
                         }
-                    } else {
-                        console.warn('[ChatInterface] Skipping saveMessage: chatId or chatInput missing', { chatId, chatInput: data.chatInput });
+                        
+                        if (data.chatInput) {
+                            try {
+                                const result = await saveMessage(sessionId, true, data.chatInput, user?.id);
+                                console.log('[ChatInterface] User message saved successfully:', result.id);
+                                if (onMessage) onMessage();
+                            } catch (err: any) {
+                                console.warn('[ChatInterface] Failed to save user message:', err.message);
+                            }
+                        }
                     }
+                    
+                    // Store sessionId for future use
+                    n8nSessionId = data.sessionId;
+                    
                     return data;
                 },
                 showWelcomeScreen: false,
                 defaultLanguage: 'en',
-                initialMessages: historyStrings,
                 onResponseReceived: async (response: any) => {
                     console.log('[ChatInterface] onResponseReceived from n8n:', response);
-                    if (chatId) {
+                    
+                    // Use the tracked sessionId (same as chatId)
+                    const sessionId = n8nSessionId;
+                    
+                    if (sessionId) {
                         try {
-                            // Extract text content from n8n response if it's in standard chatbot format (e.g. [{ output: "..." }])
+                            // Extract text content from n8n response if it's in standard chatbot format (e.g. [{ output: \"...\" }])
                             let contentToSave = response;
                             if (Array.isArray(response) && response.length > 0) {
                                 const firstItem = response[0];
@@ -94,20 +199,20 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                             // Ensure we have a string for the text part if it's still an object
                             const content = typeof contentToSave === 'string' ? contentToSave : JSON.stringify(contentToSave);
                             
-                            console.log('[ChatInterface] Sending bot response to saveMessage:', { chatId, extractedContent: content });
-                            const result = await saveMessage(chatId, false, content);
+                            console.log('[ChatInterface] Sending bot response to saveMessage:', { sessionId, extractedContent: content });
+                            const result = await saveMessage(sessionId, false, content);
                             console.log('[ChatInterface] Bot response saved successfully:', result.id);
                             if (onMessage) onMessage();
                         } catch (err: any) {
                             console.error('[ChatInterface] Failed to save bot response:', {
-                                chatId,
+                                sessionId,
                                 error: err.message,
                                 response: err.response?.data
                             });
                             if (onMessage) onMessage();
                         }
                     } else {
-                        console.warn('[ChatInterface] Skipping bot saveMessage: chatId missing', { chatId });
+                        console.warn('[ChatInterface] Skipping bot saveMessage: sessionId missing', { sessionId });
                     }
                 },
                 onError: (error: any) => {
@@ -139,20 +244,20 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                     },
                     messages: {
                         bot: {
-                            backgroundColor: 'hsl(var(--muted))',
+                            backgroundColor: 'hsl(var(--muted) / 0.9)',
                             color: 'hsl(var(--foreground))',
-                            borderRadius: '1rem',
-                            padding: '0.875rem 1rem',
+                            borderRadius: '1.5rem',
+                            padding: '0.5rem 1rem',
                             fontSize: '0.9375rem',
-                            lineHeight: '1.6',
+                            lineHeight: '1.5',
                         },
                         user: {
                             backgroundColor: 'hsl(var(--primary))',
                             color: 'hsl(var(--primary-foreground))',
-                            borderRadius: '1rem',
-                            padding: '0.875rem 1rem',
-                            fontSize: '0.9375rem',
-                            lineHeight: '1.6',
+                            borderRadius: '1.5rem',
+                            padding: '0.5rem 0.875rem',
+                            fontSize: '0.875rem',
+                            lineHeight: '1.4',
                         },
                     },
                     input: {
@@ -161,7 +266,7 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                         borderColor: 'hsl(var(--border))',
                         borderRadius: '0.75rem',
                         fontSize: '0.9375rem',
-                        padding: '0.875rem 1rem',
+                        padding: '0.75rem 1rem',
                         placeholder: {
                             color: 'hsl(var(--muted-foreground))',
                         },
@@ -180,7 +285,7 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
         }).catch(error => {
             console.error('Failed to load n8n chat:', error);
         });
-    }, [n8nWebhookUrl, chatId, lastInitializedChatId]);
+    }, [n8nWebhookUrl, chatId, initialMessages, lastInitializedChatId]);
 
     if (!n8nWebhookUrl) {
         return (
@@ -239,7 +344,7 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                     --chat--message--padding: .5rem .5rem;
                     --chat--message--border-radius: 1.25rem;
                     --chat--message-line-height: 1.6;
-                    --chat--message--bot--background: hsl(var(--muted));
+                    --chat--message--bot--background: transparent;
                     --chat--message--bot--color: hsl(var(--foreground));
                     --chat--message--bot--border: none;
                     --chat--message--user--background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.9) 100%);
@@ -264,8 +369,16 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                     overflow: hidden !important;
                 }
 
-                /* Reset browser default paragraph styles for compactness */
+                /* Paragraph styles - Allow block display in bot messages for proper formatting */
                 #n8n-chat p {
+                    margin: 0.5em 0 !important;
+                    display: block !important;
+                }
+                
+                /* Keep user message paragraphs inline for compactness */
+                #n8n-chat .message.user p,
+                #n8n-chat [class*="message"][class*="user"] p,
+                #n8n-chat [class*="Message--user"] p {
                     margin: 0 !important;
                     display: inline !important;
                 }
@@ -288,6 +401,7 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                     border-bottom: 1px solid hsl(var(--border) / 0.3) !important;
                     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
                     flex-shrink: 0 !important;
+                    justify-content: center !important;
                 }
 
                 #n8n-chat .chat-header h1,
@@ -296,16 +410,19 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                     font-weight: 700 !important;
                     letter-spacing: -0.01em !important;
                     text-align: center !important;
+                    color: hsl(var(--primary-foreground)) !important;
+                    margin: 0 !important;
                 }
 
-                #n8n-chat .chat-header p,
-                #n8n-chat header p {
+                #n8n-chat .chat-header p:not(:empty),
+                #n8n-chat header p:not(:empty) {
                     opacity: 0.8 !important;
                     margin-top: 0.25rem !important;
                     text-align: center !important;
+                    color: hsl(var(--primary-foreground)) !important;
                 }
 
-                /* Messages container - Scrollable area */
+                /* Messages container - Light background */
                 #n8n-chat .messages,
                 #n8n-chat [class*="messages"],
                 #n8n-chat .chat-messages-list,
@@ -315,11 +432,11 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                     max-width: 100% !important;
                     overflow-y: auto !important;
                     overflow-x: hidden !important;
-                    padding: 2rem !important;
+                    padding: 1rem !important;
                     background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted) / 0.1) 100%) !important;
                     display: flex !important;
                     flex-direction: column !important;
-                    gap: 1rem !important;
+                    gap: 0.5rem !important;
                 }
 
                 /* Message bubbles with glassmorphism */
@@ -344,56 +461,119 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                     max-width: 100% !important;
                 }
 
-                /* Bot messages - Glassmorphism effect */
+                /* Bot messages - Compact rounded bubble */
                 #n8n-chat .message.bot,
                 #n8n-chat [class*="message"][class*="bot"],
                 #n8n-chat [class*="Message--bot"] {
-                    background: hsl(var(--muted) / 0.6) !important;
-                    backdrop-filter: blur(12px) !important;
-                    -webkit-backdrop-filter: blur(12px) !important;
-                    border: 1px solid hsl(var(--border) / 0.3) !important;
-                    border-radius: 1.25rem 1.25rem 1.25rem 0.25rem !important;
-                    padding: 1rem 1.25rem !important;
-                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06),
-                                0 2px 4px rgba(0, 0, 0, 0.04) !important;
-                    transition: all 0.3s ease !important;
+                    background: hsl(var(--muted) / 0.9) !important;
+                    backdrop-filter: blur(10px) !important;
+                    border: none !important;
+                    border-radius: 1.5rem 1.5rem 1.5rem 0.25rem !important;
+                    padding: 0.625rem 1.125rem !important;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+                    color: hsl(var(--foreground)) !important;
+                    line-height: 1.5 !important;
+                }
+
+                /* Markdown List Styling - More compact */
+                #n8n-chat .message.bot ul,
+                #n8n-chat .message.bot ol {
+                    margin: 0.5rem 0 0.5rem 0 !important;
+                    padding-left: 1.5rem !important;
+                    display: block !important;
+                }
+
+                #n8n-chat .message.bot ul li {
+                    list-style-type: disc !important;
+                    margin-bottom: 0.25rem !important;
+                    display: list-item !important;
+                }
+
+                #n8n-chat .message.bot ol li {
+                    list-style-type: decimal !important;
+                    margin-bottom: 0.25rem !important;
+                    display: list-item !important;
+                }
+
+                #n8n-chat .message.bot strong,
+                #n8n-chat .message.bot b {
+                    font-weight: 700 !important;
+                    color: hsl(var(--foreground)) !important;
+                }
+
+                #n8n-chat .message.bot p {
+                    margin-bottom: 0.5rem !important;
+                }
+
+                #n8n-chat .message.bot p:last-child {
+                    margin-bottom: 0 !important;
+                }
+
+                #n8n-chat .message.bot code {
+                    background: hsl(var(--muted)) !important;
+                    padding: 0.2rem 0.4rem !important;
+                    border-radius: 4px !important;
+                    font-family: monospace !important;
+                    font-size: 0.9em !important;
+                }
+
+                #n8n-chat .message.bot pre {
+                    background: hsl(var(--muted) / 0.5) !important;
+                    padding: 0.75rem !important;
+                    border-radius: 0.75rem !important;
+                    margin: 0.75rem 0 !important;
+                    overflow-x: auto !important;
                 }
 
                 #n8n-chat .message.bot:hover,
                 #n8n-chat [class*="message"][class*="bot"]:hover,
                 #n8n-chat [class*="Message--bot"]:hover {
-                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1),
-                                0 3px 6px rgba(0, 0, 0, 0.06) !important;
-                    transform: translateY(-1px) !important;
+                    box-shadow: none !important;
+                    transform: none !important;
                 }
 
                 /* User messages - Gradient with glow */
                 /* User messages - Compact and right-aligned */
+                /* User messages - Compact bubbles on the right */
                 #n8n-chat .message.user,
                 #n8n-chat [class*="message"][class*="user"],
-                #n8n-chat [class*="Message--user"] {
-                    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.9) 100%) !important;
-                    border-radius: 1.25rem 1.25rem 0.25rem 1.25rem !important;
-                    padding: 0.5rem 0.875rem !important;
-                    box-shadow: 0 4px 12px hsl(var(--primary) / 0.2),
-                                0 2px 4px hsl(var(--primary) / 0.1) !important;
+                #n8n-chat [class*="Message--user"],
+                #n8n-chat [class*="message-user"],
+                #n8n-chat .chat-message-from-user,
+                #n8n-chat [class*="user-msg"],
+                #n8n-chat [class*="UserMsg"] {
+                    background: transparent !important;
+                    background-color: transparent !important;
+                    border: none !important;
+                    border-radius: 0 !important;
+                    padding: 0.25rem 0 !important;
+                    box-shadow: none !important;
                     margin-left: auto !important;
                     margin-right: 0 !important;
-                    transition: all 0.3s ease !important;
+                    transition: none !important;
                     align-self: flex-end !important;
-                    text-align: left !important; /* Text itself should be left-aligned for readability */
+                    text-align: right !important;
                     max-width: 85% !important;
                     width: fit-content !important;
                     display: block !important;
-                    flex: 0 1 auto !important;
+                    flex: 0 0 auto !important;
+                    color: hsl(var(--foreground)) !important;
+                    float: right !important;
+                    clear: both !important;
+                    font-weight: 500 !important;
+                    min-height: 0 !important;
                 }
 
                 #n8n-chat .message.user p,
                 #n8n-chat [class*="message"][class*="user"] p,
-                #n8n-chat [class*="Message--user"] p {
-                    display: inline-block !important; /* Ensure it doesn't force full width */
+                #n8n-chat [class*="Message--user"] p,
+                #n8n-chat [class*="message-user"] p,
+                #n8n-chat .chat-message-from-user p,
+                #n8n-chat [class*="user-msg"] p {
                     margin: 0 !important;
-                    text-align: left !important;
+                    display: inline !important;
+                    color: inherit !important;
+                    background: transparent !important;
                 }
 
                 #n8n-chat .message.user:hover,
@@ -412,7 +592,7 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                     flex-direction: column !important;
                 }
 
-                /* Input container - Fixed at bottom */
+                /* Input container - Light background */
                 #n8n-chat .chat-input,
                 #n8n-chat [class*="input"],
                 #n8n-chat form,
@@ -428,8 +608,8 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                     flex-direction: row !important;
                     align-items: center !important;
                     gap: 1rem !important;
-                    padding-left: 2rem !important;
-                    padding-right: 2rem !important;
+                    padding: 1rem 2rem !important;
+                    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04) !important;
                 }
 
                 #n8n-chat .chat-input {
@@ -449,11 +629,11 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                     border-radius: 0.75rem !important;
                     padding: 0.75rem 1rem !important;
                     font-size: 0.9375rem !important;
+                    color: hsl(var(--foreground)) !important;
                     transition: all 0.2s ease !important;
                     height: auto !important;
                     min-height: 44px !important;
                     max-height: 250px !important;
-                    field-sizing: content !important;
                     resize: none !important;
                     flex: 1 !important;
                     line-height: 1.5 !important;
@@ -463,8 +643,7 @@ export function ChatInterface({ chatId, onMessage, initialMessages = [] }: ChatI
                 #n8n-chat textarea:focus {
                     outline: none !important;
                     border-color: hsl(var(--primary)) !important;
-                    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1),
-                                0 4px 12px hsl(var(--primary) / 0.15) !important;
+                    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1) !important;
                     background: hsl(var(--background)) !important;
                 }
 
