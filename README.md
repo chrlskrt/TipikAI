@@ -1,135 +1,138 @@
-# Turborepo starter
+# TipikAI
 
-This Turborepo starter is maintained by the Turborepo core team.
+**Self-Training an Image Binary Classification Model using a Multi-Agent System**
 
-## Using this example
+TipikAI is a no-code machine learning platform. A user describes a binary
+image-classification model in natural language, and a multi-agent system (MAS)
+autonomously **finds a dataset, preprocesses it, and iteratively self-trains a
+model** — no execution environment setup, dependency management, or ML
+expertise required from the user. A Human-in-the-Loop (HITL) checkpoint between
+phases lets the user confirm or correct the agents' output.
 
-Run the following command:
+---
 
-```sh
-npx create-turbo@latest
+## How it works
+
+The ML pipeline is decomposed into specialized n8n agents, orchestrated by a
+"Project Manager" agent. A mixed LLM configuration is used for cost/quota
+control: **Gemini-2.5** drives dataset search, preprocessing, and helper
+utilities, while **GPT-4.1** is reserved for the model-training phase.
+
+| Phase | Agent | Responsibility |
+|---|---|---|
+| **1. Dataset Search** | Dataset Finder | Sources a relevant dataset (≥2,000 images) from Kaggle or HuggingFace; a Broken Link Checker verifies URLs. HITL gate here. |
+| **2. Preprocessing** | Dataset Acquisition | Generates a download script, validates it in a sandbox, then enforces a flat or pre-split folder schema and balances test/val splits. |
+| | Data Preprocessing | Generates preprocessing code, grounded with Google Search, self-healed by a Code Validator. |
+| **3. Model Training** | Model Training | Iteratively trains a model (MobileNetV2 transfer learning), producing a script, Keras model, metrics JSON, and analysis summary each iteration. |
+
+The **self-training loop** halts on data-driven criteria (convergence, high
+performance / overfitting plateau, or diminishing returns), with a minimum of
+one refinement cycle before stopping.
+
+---
+
+## Repository layout
+
+This is a **Turborepo + pnpm** monorepo (Node ≥ 18, pnpm 9).
+
+| Path | What it is |
+|---|---|
+| `apps/api` | NestJS 11 backend (port **8000**). Triggers and tracks executions; persists chats/messages; serves WebSocket progress. |
+| `apps/web` | Next.js 16 / React 19 frontend (port **3000**). Single-page wizard, embeds the `@n8n/chat` widget. |
+| `workflows/` | Exported n8n workflow JSON — **the actual ML pipeline**. `orchestrator.json` is the entrypoint; `agents/*` and `helpers/*` are sub-workflows. |
+| `packages/*` | Shared `@repo/ui`, `@repo/eslint-config`, `@repo/typescript-config`. |
+
+The pipeline runs **remotely**: the orchestrator opens an SSH + per-session
+`tmux` session on a remote box with a Python venv, and all dataset/training
+work executes there. n8n is orchestration only.
+
+> Two distinct n8n paths exist — keep them straight: (1) the conversational
+> chat-widget path (browser → n8n chat webhook directly), and (2) the
+> execution-tracking path (`/model/execute` → n8n → `/model/webhook/status` →
+> Socket.IO). The workflows here implement path (1).
+
+---
+
+## Getting started
+
+### Prerequisites
+
+- Node.js ≥ 18, [pnpm](https://pnpm.io) 9
+- A Postgres database (the project targets a Supabase Postgres)
+- A running [n8n](https://n8n.io) instance with the `workflows/` JSON imported
+- A remote machine reachable over SSH with Python + a venv (for the pipeline)
+
+### Install
+
+```bash
+pnpm install
 ```
 
-## What's inside?
+### Configure the API
 
-This Turborepo includes the following packages/apps:
+Copy `apps/api/.env.example` to `apps/api/.env` and fill it in.
 
-### Apps and Packages
+> ⚠️ **Gotcha:** despite what `.env.example` shows, `database.module.ts` reads
+> the connection from `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`,
+> `DB_DATABASE`, and `DB_SSL_CA` — **not** `DATABASE_URL`. Set those instead.
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+Key variables: `JWT_SECRET`, `CORS_ORIGIN`, and the n8n integration
+(`USE_N8N`, `N8N_BASE_URL`, `N8N_WEBHOOK_SECRET`,
+`N8N_MODEL_EXECUTION_ENDPOINT`).
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+The web app is configured via `NEXT_PUBLIC_*` vars: `NEXT_PUBLIC_API_URL`
+(default `http://localhost:8000`), `NEXT_PUBLIC_N8N_BASE_URL`,
+`NEXT_PUBLIC_USE_N8N`, `NEXT_PUBLIC_N8N_CHAT_URL`.
 
-### Utilities
+### Run
 
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+```bash
+pnpm dev                      # all apps in watch mode
+pnpm dev --filter=api         # just the API (port 8000)
+pnpm dev --filter=web         # just the web app (port 3000)
 ```
 
-You can build a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+- API Swagger UI: `http://localhost:8000/api-docs`
+- Web app: `http://localhost:3000`
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
+---
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+## Common commands
 
-### Develop
+Run from the repo root (Turbo fans out to all workspaces):
 
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
+```bash
+pnpm build          # build all
+pnpm lint           # lint all
+pnpm check-types    # typecheck all
+pnpm format         # prettier write across the repo
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+API-specific (`cd apps/api`):
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+```bash
+pnpm test                          # jest unit tests (*.spec.ts)
+pnpm test -- chat.service.spec     # a single test file by pattern
+pnpm test:e2e                      # e2e tests
+pnpm generate:types                # regenerate src/database/db.d.ts from the live DB
 ```
 
-### Remote Caching
+> `apps/web` has no test runner. `src/database/db.d.ts` is generated by
+> kysely-codegen — **never hand-edit it**; regenerate after schema changes.
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+---
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+## Tech stack
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+- **Backend:** NestJS 11, Kysely (query builder, not an ORM), Passport JWT,
+  Socket.IO, Postgres (Supabase)
+- **Frontend:** Next.js 16, React 19, Tailwind v4, Radix UI, `@n8n/chat`
+- **Pipeline:** n8n (LangChain agent nodes), Gemini-2.5 + GPT-4.1, remote
+  SSH/tmux Python execution, TensorFlow/Keras (MobileNetV2)
+- **Deployment:** API → Render or Vercel; web → Vercel (deployed independently)
 
-```
-cd my-turborepo
+---
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
+## License
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+Academic / research use. UNLICENSED
